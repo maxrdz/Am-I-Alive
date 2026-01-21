@@ -1,0 +1,16 @@
+[package]
+name = "am-i-alive"
+version = "0.1.0"
+edition = "2024"
+
+[[bin]]
+path = "src/main.rs"
+name = "amialived"
+
+[dependencies]
+axum = "0.7"
+tokio = { version = "1", features = ["full"] }
+askama = "0.12"
+toml = "0.7"
+pow = "0.2"
+serde = "*"

@@ -7,17 +7,17 @@
     <link rel="icon" type="image/png" sizes="32x32" href="./favicon/favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="./favicon/favicon-16x16.png">
     <link rel="manifest" href="./favicon/site.webmanifest">
-    <title>Is %%NAME%% Alive?</title>
+    <title>Is {{ name }} Alive?</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div class="main">
         <div class="container">
             <div class="cat-image">
-                <img src="%%STATUS_IMAGE%%" alt="Status Image">
+                <img src="{{ status_image }}" alt="Status Image">
             </div>
             <div class="status-message">
-                <h1>%%STATUS_MESSAGE%%</h1>
+                <h1>{{ status_message }}</h1>
             </div>
         </div>
         <div class="container heartbeat">
@@ -35,24 +35,24 @@
                         <th>Message</th>
                     </tr>
                     <tr>
-                        <td>%%ROW_1_TIMESTAMP%%</td>
-                        <td>%%ROW_1_MESSAGE%%</td>
+                        <td>{{ row_1_timestamp }}</td>
+                        <td>{{ row_1_message }}</td>
                     </tr>
                     <tr>
-                        <td>%%ROW_2_TIMESTAMP%%</td>
-                        <td>%%ROW_2_MESSAGE%%</td>
+                        <td>{{ row_2_timestamp }}</td>
+                        <td>{{ row_2_message }}</td>
                     </tr>
                     <tr>
-                        <td>%%ROW_3_TIMESTAMP%%</td>
-                        <td>%%ROW_3_MESSAGE%%</td>
+                        <td>{{ row_3_timestamp }}</td>
+                        <td>{{ row_3_message }}</td>
                     </tr>
                     <tr>
-                        <td>%%ROW_4_TIMESTAMP%%</td>
-                        <td>%%ROW_4_MESSAGE%%</td>
+                        <td>{{ row_4_timestamp }}</td>
+                        <td>{{ row_4_message }}</td>
                     </tr>
                     <tr>
-                        <td>%%ROW_5_TIMESTAMP%%</td>
-                        <td>%%ROW_5_MESSAGE%%</td>
+                        <td>{{ row_5_timestamp }}</td>
+                        <td>{{ row_5_message }}</td>
                     </tr>
                 </tbody>
             </table>

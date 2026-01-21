@@ -9,6 +9,18 @@ services:
     networks:
       - "net"
     mem_limit: 50mb
+  amialive:
+    container_name: amialive
+    restart: always
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: amialived
+    volumes:
+      - ./config.toml:/app/config.toml
+    networks:
+      - "net"
+    mem_limit: 50mb
 
 networks:
   net:
