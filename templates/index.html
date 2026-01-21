@@ -20,50 +20,55 @@
                 <h1>{{ status_message }}</h1>
             </div>
         </div>
-        <div class="container heartbeat">
-            <div id="heartbeat-header">
-                <div class="heart-container">
-                    <img src="./resources/heart.svg" alt="Heart Symbolic Icon" class="static-heart">
-                    <img src="./resources/heart.svg" alt="Heart Symbolic Icon" class="heart-pulse">
+        <div class="container vertical">
+            <div class="container heartbeat">
+                <div id="heartbeat-header">
+                    <div class="heart-container">
+                        <img src="/resources/heart.svg" alt="Heart Symbolic Icon" class="static-heart">
+                        <img src="/resources/heart.svg" alt="Heart Symbolic Icon" class="heart-pulse">
+                    </div>
+                    <h1>Heartbeat History</h1>
                 </div>
-                <h1>Heartbeat History</h1>
+                <table>
+                    <tbody>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>Message</th>
+                        </tr>
+                        <tr>
+                            <td>{{ row_1_timestamp }}</td>
+                            <td>{{ row_1_message }}</td>
+                        </tr>
+                        <tr>
+                            <td>{{ row_2_timestamp }}</td>
+                            <td>{{ row_2_message }}</td>
+                        </tr>
+                        <tr>
+                            <td>{{ row_3_timestamp }}</td>
+                            <td>{{ row_3_message }}</td>
+                        </tr>
+                        <tr>
+                            <td>{{ row_4_timestamp }}</td>
+                            <td>{{ row_4_message }}</td>
+                        </tr>
+                        <tr>
+                            <td>{{ row_5_timestamp }}</td>
+                            <td>{{ row_5_message }}</td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
-            <table>
-                <tbody>
-                    <tr>
-                        <th>Timestamp</th>
-                        <th>Message</th>
-                    </tr>
-                    <tr>
-                        <td>{{ row_1_timestamp }}</td>
-                        <td>{{ row_1_message }}</td>
-                    </tr>
-                    <tr>
-                        <td>{{ row_2_timestamp }}</td>
-                        <td>{{ row_2_message }}</td>
-                    </tr>
-                    <tr>
-                        <td>{{ row_3_timestamp }}</td>
-                        <td>{{ row_3_message }}</td>
-                    </tr>
-                    <tr>
-                        <td>{{ row_4_timestamp }}</td>
-                        <td>{{ row_4_message }}</td>
-                    </tr>
-                    <tr>
-                        <td>{{ row_5_timestamp }}</td>
-                        <td>{{ row_5_message }}</td>
-                    </tr>
-                </tbody>
-            </table>
+            <div class="container note" id="{{ show_note }}">
+                <p><b>Note from {{ name }}:</b> {{ note_message }}</p>
+            </div>
         </div>
     </div>
+    <footer>
+        <p>
+            Copyright © 2026 Max Rodriguez. "Am I Alive?" is free and open source software available on
+            <a href="https://gitlab.com/maxrdz/am-i-alive">GitLab</a>.
+        </p>
+    </footer>
 </body>
-<footer>
-    <p>
-        Copyright © 2026 Max Rodriguez. "Am I Alive?" is free and open source software available on
-        <a href="https://gitlab.com/maxrdz/am-i-alive">GitLab</a>.
-    </p>
-</footer>
 </html>
 

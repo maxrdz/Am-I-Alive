@@ -30,6 +30,30 @@ use std::sync::Arc;
 
 mod config;
 
+const MAX_DISPLAYED_HEARTBEATS: usize = 5;
+
+#[derive(Clone)]
+struct ServerState {
+    config: Arc<config::ServerConfig>,
+    displayed_heartbeats: [HeartbeatDisplay; MAX_DISPLAYED_HEARTBEATS],
+    note: Option<String>,
+}
+
+#[derive(Clone)]
+struct HeartbeatDisplay {
+    timestamp: String,
+    message: String,
+}
+
+impl Default for HeartbeatDisplay {
+    fn default() -> Self {
+        HeartbeatDisplay {
+            timestamp: String::from("Jan 1 1970 @ 12:00 AM"),
+            message: String::from("N/A")
+        }
+    }
+}
+
 #[derive(Template)]
 #[template(path = "index.html")]
 struct IndexTemplate {
@@ -46,30 +70,42 @@ struct IndexTemplate {
     row_4_message: String,
     row_5_timestamp: String,
     row_5_message: String,
+    show_note: String,
+    note_message: String,
 }
 
 async fn index(
-    State(config): State<Arc<config::ServerConfig>>,
+    State(server_state): State<ServerState>,
 ) -> impl IntoResponse {
-    let name: String = config.global.name.clone();
+    let name: String = server_state.config.global.name.clone();
     
-    let mut formatted_status_msg: String = config.global.ok_messages.get(0).unwrap().clone();
+    let mut formatted_status_msg: String = server_state.config.global.ok_messages.get(0).unwrap().clone();
     formatted_status_msg = formatted_status_msg.replace("{0}", &name);
 
+    let heartbeats: &[HeartbeatDisplay; 5] = &server_state.displayed_heartbeats;
+
     let html = IndexTemplate {
-        name: name.clone(),
-        status_image: config.global.ok_images.get(0).unwrap().into(),
+        name: name,
+        status_image: server_state.config.global.ok_images.get(0).unwrap().into(),
         status_message: formatted_status_msg,
-        row_1_timestamp: "N/A".into(),
-        row_1_message: "N/A".into(),
-        row_2_timestamp: "N/A".into(),
-        row_2_message: "N/A".into(),
-        row_3_timestamp: "N/A".into(),
-        row_3_message: "N/A".into(),
-        row_4_timestamp: "N/A".into(),
-        row_4_message: "N/A".into(),
-        row_5_timestamp: "N/A".into(),
-        row_5_message: "N/A".into(),
+        row_1_timestamp: heartbeats[0].timestamp.clone(),
+        row_1_message: heartbeats[0].message.clone(),
+        row_2_timestamp: heartbeats[1].timestamp.clone(),
+        row_2_message: heartbeats[1].message.clone(),
+        row_3_timestamp: heartbeats[2].timestamp.clone(),
+        row_3_message: heartbeats[2].message.clone(),
+        row_4_timestamp: heartbeats[3].timestamp.clone(),
+        row_4_message: heartbeats[3].message.clone(),
+        row_5_timestamp: heartbeats[4].timestamp.clone(),
+        row_5_message: heartbeats[4].message.clone(),
+        show_note: match server_state.note {
+            Some(_) => String::default(),
+            None => "hidden".into(),
+        },
+        note_message: match server_state.note {
+            Some(note) => note.clone(),
+            None => String::default(),
+        },
     }
     .render()
     .unwrap();
@@ -106,7 +142,15 @@ async fn main() {
     // start the web server
     let app = Router::new()
         .route("/", get(index))
-        .with_state(daemon_config);
+        .with_state(ServerState {
+            config: daemon_config,
+            displayed_heartbeats: [
+                HeartbeatDisplay::default(), HeartbeatDisplay::default(),
+                HeartbeatDisplay::default(), HeartbeatDisplay::default(),
+                HeartbeatDisplay::default()
+            ],
+            note: Some("testing 123".into()),
+        });
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
     axum::serve(listener, app).await.unwrap();
 }

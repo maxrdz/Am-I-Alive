@@ -30,7 +30,9 @@ body {
 }
 
 .container.heartbeat {
-    max-width: 750px;
+    max-width: 100%;
+    width: 100%;
+    margin: auto;
 }
 
 h1 {
@@ -109,7 +111,36 @@ h1 {
 }
 
 .container.heartbeat table tr:nth-child(even) {
-  background-color: #c10e203c;
+    background-color: #c10e203c;
+}
+
+.container.vertical {
+    display: block;
+    padding: 0;
+    background-color: #00000000;
+    box-shadow: none;
+    max-width: 750px;
+}
+
+.container.note {
+    margin-left: 0px;
+    margin-right: 0px;
+    max-width: 75%;
+    width: fit-content;
+    padding: 15px;
+    margin-top: 40px;
+    background-color: #feff9c;
+    max-height: 100px;
+    overflow: scroll;
+    margin: auto;
+    margin-top: 30px;
+}
+
+.container.note#hidden {
+    visibility: hidden;
+    padding: 0;
+    margin: 0;
+    height: 0;
 }
 
 footer {
@@ -141,8 +172,18 @@ footer p {
         max-width: 100%;
     }
 
+    .verticalcontainer {
+        display: flex;
+        flex-wrap: wrap;
+        width: 100%;
+    }
+
     .container.heartbeat {
         max-width: 100%;
+    }
+
+    .container.note {
+        width: 100%;
     }
 
     h1 {
