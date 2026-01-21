@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="apple-touch-icon" sizes="180x180" href="./favicon/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="./favicon/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="./favicon/favicon-16x16.png">
+    <link rel="manifest" href="./favicon/site.webmanifest">
+    <title>Is %%NAME%% Alive?</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="main">
+        <div class="container">
+            <div class="cat-image">
+                <img src="%%STATUS_IMAGE%%" alt="Status Image">
+            </div>
+            <div class="status-message">
+                <h1>%%STATUS_MESSAGE%%</h1>
+            </div>
+        </div>
+        <div class="container heartbeat">
+            <div id="heartbeat-header">
+                <div class="heart-container">
+                    <img src="./resources/heart.svg" alt="Heart Symbolic Icon" class="static-heart">
+                    <img src="./resources/heart.svg" alt="Heart Symbolic Icon" class="heart-pulse">
+                </div>
+                <h1>Heartbeat History</h1>
+            </div>
+            <table>
+                <tbody>
+                    <tr>
+                        <th>Timestamp</th>
+                        <th>Message</th>
+                    </tr>
+                    <tr>
+                        <td>%%ROW_1_TIMESTAMP%%</td>
+                        <td>%%ROW_1_MESSAGE%%</td>
+                    </tr>
+                    <tr>
+                        <td>%%ROW_2_TIMESTAMP%%</td>
+                        <td>%%ROW_2_MESSAGE%%</td>
+                    </tr>
+                    <tr>
+                        <td>%%ROW_3_TIMESTAMP%%</td>
+                        <td>%%ROW_3_MESSAGE%%</td>
+                    </tr>
+                    <tr>
+                        <td>%%ROW_4_TIMESTAMP%%</td>
+                        <td>%%ROW_4_MESSAGE%%</td>
+                    </tr>
+                    <tr>
+                        <td>%%ROW_5_TIMESTAMP%%</td>
+                        <td>%%ROW_5_MESSAGE%%</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</body>
+<footer>
+    <p>
+        Copyright © 2026 Max Rodriguez. "Am I Alive?" is free and open source on
+        <a href="https://gitlab.com/maxrdz/am-i-alive">GitLab</a>.
+    </p>
+</footer>
+</html>
+
