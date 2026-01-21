@@ -4,14 +4,17 @@
     box-sizing: border-box;
 }
 
-.main {
-    font-family: 'Verdana', sans-serif;
+body {
+    margin: 0;
     background-color: #f3f4f6;
+    font-family: 'Verdana', sans-serif;
+}
+
+.main {
     display: flex;
     justify-content: center;
     align-items: center;
     height: 95vh;
-    margin: 0;
 }
 
 .container {
@@ -120,4 +123,88 @@ footer p {
     font-family: Verdana, Geneva, Tahoma, sans-serif;
     font-size: 13px;
     text-align: center;
+}
+
+@media (max-width: 768px) {
+    .main {
+        height: auto;
+        padding: 20px 0;
+        flex-wrap: wrap; /* allows stacking */
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .container {
+        margin: 15px 0;
+        padding: 25px;
+        width: 92%;
+        max-width: 100%;
+    }
+
+    .container.heartbeat {
+        max-width: 100%;
+    }
+
+    h1 {
+        font-size: 1.8rem;
+    }
+
+    .status-message h1 {
+        font-size: 1.6rem;
+    }
+
+    .cat-image img {
+        width: 140px;
+        height: auto;
+    }
+
+    #heartbeat-header {
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .heart-container {
+        margin-right: 0;
+    }
+
+    .static-heart,
+    .heart-pulse {
+        width: 55px;
+    }
+
+    .container.heartbeat table {
+        margin-top: 20px;
+        height: auto;
+        font-size: 0.9rem;
+    }
+
+    .container.heartbeat th,
+    .container.heartbeat td {
+        padding: 8px 6px;
+        word-break: break-word;
+    }
+
+    footer {
+        height: auto;
+        padding: 10px;
+    }
+
+    footer p {
+        font-size: 11px;
+        line-height: 1.4;
+    }
+}
+
+@media (max-width: 420px) {
+    h1 {
+        font-size: 1.5rem;
+    }
+
+    .status-message h1 {
+        font-size: 1.4rem;
+    }
+
+    .container {
+        padding: 20px;
+    }
 }
