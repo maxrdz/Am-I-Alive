@@ -1,0 +1,16 @@
+services:
+  status:
+    container_name: status
+    restart: always
+    image: nginx
+    volumes:
+      - ./config/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./www:/usr/share/nginx/html:ro
+    networks:
+      - "net"
+    mem_limit: 50mb
+
+networks:
+  net:
+    external: true
+
