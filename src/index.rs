@@ -17,6 +17,8 @@
     License along with "Am I Alive". If not, see <https://www.gnu.org/licenses/>.
 */
 
+use std::fmt::Display;
+
 use crate::redundancy::Redundant;
 use crate::{HeartbeatDisplay, LifeState, ServerState};
 use askama::Template;
@@ -32,6 +34,7 @@ use tokio::sync::MutexGuard;
 struct IndexTemplate {
     name: String,
     status_image: String,
+    status_title: String,
     status_message: String,
     row_1_timestamp: String,
     row_1_message: String,
@@ -61,6 +64,8 @@ pub async fn index(State(server_state): State<ServerState>) -> impl IntoResponse
         LifeState::Alive => server_state.config.global.name.clone(),
         _ => server_state.config.global.full_name.clone(),
     };
+
+    let status_title: String = locked_state.to_string();
 
     // pick a status image
     let status_img_paths: &Vec<String> = match **locked_state {
@@ -92,7 +97,8 @@ pub async fn index(State(server_state): State<ServerState>) -> impl IntoResponse
     let locked_note: MutexGuard<'_, Option<String>> = server_state.note.lock().await;
 
     let html = IndexTemplate {
-        name: name,
+        name,
+        status_title,
         status_image: img_path,
         status_message: formatted_status_msg,
         row_1_timestamp: heartbeats[0].timestamp.clone(),

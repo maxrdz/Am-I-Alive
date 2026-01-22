@@ -56,9 +56,22 @@ enum LifeState {
     ProbablyAlive,
     /// enter this state after the end of the maximum silence period
     MissingOrDead,
+    /// enter this state once verified by 1 or more trusted users
     Coma,
     /// enter this state once verified by 1 or more trusted users
     Dead,
+}
+
+impl std::fmt::Display for LifeState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Alive => write!(f, "ALIVE"),
+            Self::ProbablyAlive => write!(f, "PROBABLY ALIVE"),
+            Self::MissingOrDead => write!(f, "MISSING OR DEAD"),
+            Self::Coma => write!(f, "ALIVE BUT UNRESPONSIVE"),
+            Self::Dead => write!(f, "DEAD"),
+        }
+    }
 }
 
 impl From<&str> for LifeState {
