@@ -17,8 +17,6 @@
     License along with "Am I Alive". If not, see <https://www.gnu.org/licenses/>.
 */
 
-use std::fmt::Display;
-
 use crate::redundancy::Redundant;
 use crate::{HeartbeatDisplay, LifeState, ServerState};
 use askama::Template;
@@ -111,6 +109,43 @@ pub async fn index(State(server_state): State<ServerState>) -> impl IntoResponse
         row_4_message: heartbeats[3].message.clone(),
         row_5_timestamp: heartbeats[4].timestamp.clone(),
         row_5_message: heartbeats[4].message.clone(),
+        show_note: match *locked_note {
+            Some(_) => String::default(),
+            None => "hidden".into(),
+        },
+        note_message: match &*locked_note {
+            Some(note) => note.clone(),
+            None => String::default(),
+        },
+    }
+    .render()
+    .unwrap();
+
+    Html(html)
+}
+
+#[derive(Template)]
+#[template(path = "heartbeat.html")]
+struct HeartbeatTemplate {
+    name: String,
+    show_note: String,
+    note_message: String,
+}
+
+pub async fn heartbeat(State(server_state): State<ServerState>) -> impl IntoResponse {
+    let locked_state: MutexGuard<'_, Redundant<LifeState>> = server_state.state.lock().await;
+
+    // short name when alive, full name when in any negative state.
+    let name: String = match **locked_state {
+        LifeState::Alive => server_state.config.global.name.clone(),
+        _ => server_state.config.global.full_name.clone(),
+    };
+    drop(locked_state); // drop mutex as we no longer will read state
+
+    let locked_note: MutexGuard<'_, Option<String>> = server_state.note.lock().await;
+
+    let html = HeartbeatTemplate {
+        name,
         show_note: match *locked_note {
             Some(_) => String::default(),
             None => "hidden".into(),

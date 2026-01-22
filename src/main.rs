@@ -19,8 +19,8 @@
 
 mod config;
 mod database;
-mod index;
 mod redundancy;
+mod templating;
 
 use axum::{Router, routing::get};
 use rand::rand_core::OsRng;
@@ -143,7 +143,8 @@ async fn main() {
 
     // start the web server (with initial state)
     let app: Router = Router::new()
-        .route("/", get(index::index))
+        .route("/", get(templating::index))
+        .route("/heartbeat", get(templating::heartbeat))
         .with_state(ServerState {
             state: Arc::new(Mutex::new(Redundant::new(initial_state.state))),
             last_heartbeat: Arc::new(Mutex::new(Redundant::new(initial_state.last_heartbeat))),

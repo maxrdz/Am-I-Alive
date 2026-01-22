@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="apple-touch-icon" sizes="180x180" href="./favicon/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="./favicon/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="./favicon/favicon-16x16.png">
+    <link rel="manifest" href="./favicon/site.webmanifest">
+    <title>Is {{ name }} Alive?</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="main">
+        <div class="container vertical">
+            <div class="container heartbeat">
+                <div id="heartbeat-header">
+                    <div class="heart-container">
+                        <img src="/resources/heart.svg" alt="Heart Symbolic Icon" class="static-heart">
+                        <img src="/resources/heart.svg" alt="Heart Symbolic Icon" class="heart-pulse">
+                    </div>
+                    <h1>Send a Heartbeat</h1>
+                </div>
+                <form action="/api/heartbeat/send" method="POST">
+                    <br><br>
+                    <label>Current Note:</label>
+                    <div class="container note" id="{{ show_note }}">
+                        <p><b>Note from {{ name }}:</b> {{ note_message }}</p>
+                    </div>
+                    <br><br>
+                    <label for="newnote">Update note:</label>
+                    <input id="newnote" spellcheck="true" placeholder="What do you want viewers to keep in mind?" style="width: 50%;"></input>
+                    <br><br>
+                    <label for="rmnote">Remove current Note?</label>
+                    <input id="rmnote" type="checkbox"></input>
+                    <br><br>
+                    <label for="msg">Message:</label>
+                    <input id="msg" spellcheck="true" placeholder="Any info you'd like to include?" style="width: 50%;"></input>
+                    <br><br>
+                    <label for="pwd">Password:</label>
+                    <input id="pwd" type="text" spellcheck="false" placeholder="super-apple-cookie-princess-giggle-muffins" style="width: 50%;"></input>
+                    <br><br>
+                    <input type="submit" value="Send Heartbeat" style="width: 20%;">
+                </form>
+                <div class="container note" style="background-color: green;" id="hidden">
+                    <p>Authenticated</p>
+                </div>
+            </div>
+            <div style="margin-top: 40px;">
+                <a href="/">Go back to the Home Page</a>
+            </div>
+        </div>
+    </div>
+    <footer>
+        <p>
+            Copyright © 2026 Max Rodriguez. "Am I Alive?" is free and open source software available on
+            <a href="https://gitlab.com/maxrdz/am-i-alive">GitLab</a>.
+        </p>
+    </footer>
+</body>
+</html>
+
