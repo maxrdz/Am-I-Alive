@@ -1,6 +1,7 @@
 [global]
 name = "John"
 full_name = "John Doe"
+utc_offset = 0
 time_until_uncertain = 24 # in hours
 time_until_death = 168 # 1 week in hours
 pow_difficulty = 5 # See: https://blog.trishtzy.com/2025/08/15/rate-limit-by-pow.html

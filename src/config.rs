@@ -28,6 +28,7 @@ pub struct ServerConfig {
 pub struct Global {
     pub name: String,
     pub full_name: String,
+    pub utc_offset: i32,
     pub time_until_uncertain: u16,
     pub time_until_death: u16,
     pub pow_difficulty: u8,

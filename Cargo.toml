@@ -9,6 +9,7 @@ name = "amialived"
 
 [dependencies]
 axum = "0.7"
+chrono = "0.4"
 tokio = { version = "1", features = ["full"] }
 askama = "0.12"
 toml = "0.7"

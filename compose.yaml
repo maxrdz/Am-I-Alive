@@ -7,7 +7,9 @@ services:
       - ./config/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./www:/usr/share/nginx/html:ro
     networks:
-      - "net"
+      - "amialivenet"
+    ports:
+      - "80:80"
     mem_limit: 50mb
   amialive:
     container_name: amialive
@@ -18,11 +20,12 @@ services:
     image: amialived
     volumes:
       - ./config.toml:/app/config.toml
+      - ./db.txt:/app/db.txt
     networks:
-      - "net"
+      - "amialivenet"
     mem_limit: 50mb
 
 networks:
-  net:
-    external: true
-
+  amialivenet:
+    name: Am I Alive Network
+    driver: bridge

@@ -18,40 +18,60 @@
 */
 
 mod config;
+mod database;
+mod index;
 mod redundancy;
 
-use askama::Template;
-use axum::{
-    Router,
-    extract::State,
-    response::{Html, IntoResponse},
-    routing::get,
-};
-use rand::rand_core::{OsRng, TryRngCore};
+use axum::{Router, routing::get};
+use rand::rand_core::OsRng;
 use redundancy::Redundant;
 use std::fs::File;
 use std::io::Read;
-use std::sync::{Arc, Mutex, MutexGuard};
+use std::sync::Arc;
+use std::time::{SystemTime, UNIX_EPOCH};
+use tokio::net::TcpListener;
+use tokio::sync::Mutex;
 
 const MAX_DISPLAYED_HEARTBEATS: usize = 5;
 
 #[derive(Clone)]
 struct ServerState {
-    state: Redundant<LifeState>,
+    state: Arc<Mutex<Redundant<LifeState>>>,
+    /// Unix time. We don't use an atomic u64 data type because
+    /// we want to make use of our custom anti-memory-corruption data type.
+    last_heartbeat: Arc<Mutex<Redundant<u64>>>,
+    server_start_time: Redundant<u64>,
     config: Arc<config::ServerConfig>,
     rng: Arc<Mutex<OsRng>>,
     displayed_heartbeats: [HeartbeatDisplay; MAX_DISPLAYED_HEARTBEATS],
-    note: Option<String>,
+    note: Arc<Mutex<Option<String>>>,
 }
 
 #[derive(Default, Clone, Copy, PartialEq, Eq)]
 enum LifeState {
     #[default]
     Alive,
+    /// enter this state once we have not received a heartbeat
+    /// after the full grace period (default 24 hours)
     ProbablyAlive,
-    Coma,
+    /// enter this state after the end of the maximum silence period
     MissingOrDead,
+    Coma,
+    /// enter this state once verified by 1 or more trusted users
     Dead,
+}
+
+impl From<&str> for LifeState {
+    fn from(value: &str) -> Self {
+        match value {
+            "0" => Self::Alive,
+            "1" => Self::ProbablyAlive,
+            "2" => Self::MissingOrDead,
+            "3" => Self::Coma,
+            "4" => Self::Dead,
+            _ => panic!("'{}' does not represent a valid state!", value),
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -63,98 +83,10 @@ struct HeartbeatDisplay {
 impl Default for HeartbeatDisplay {
     fn default() -> Self {
         HeartbeatDisplay {
-            timestamp: String::from("Jan 1 1970 @ 12:00 AM"),
+            timestamp: String::from("N/A"),
             message: String::from("N/A"),
         }
     }
-}
-
-#[derive(Template)]
-#[template(path = "index.html")]
-struct IndexTemplate {
-    name: String,
-    status_image: String,
-    status_message: String,
-    row_1_timestamp: String,
-    row_1_message: String,
-    row_2_timestamp: String,
-    row_2_message: String,
-    row_3_timestamp: String,
-    row_3_message: String,
-    row_4_timestamp: String,
-    row_4_message: String,
-    row_5_timestamp: String,
-    row_5_message: String,
-    show_note: String,
-    note_message: String,
-}
-
-async fn index(State(server_state): State<ServerState>) -> impl IntoResponse {
-    // first get a random number from the OS rng
-    let mut rng: MutexGuard<'_, OsRng> =
-        server_state.rng.lock().expect("Failed to lock RNG mutex.");
-    let img_randint: u64 = rng.try_next_u64().expect("OS RNG error.");
-    let msg_randint: u64 = rng.try_next_u64().expect("OS RNG error.");
-    drop(rng);
-
-    // short name when alive, full name when in any negative state.
-    let name: String = match *server_state.state {
-        LifeState::Alive => server_state.config.global.name.clone(),
-        _ => server_state.config.global.full_name.clone(),
-    };
-
-    // pick a status image
-    let status_img_paths: &Vec<String> = match *server_state.state {
-        LifeState::Alive => &server_state.config.global.ok_images,
-        LifeState::Dead => &server_state.config.global.death_images,
-        _ => &server_state.config.global.uncertain_images,
-    };
-    let num_images: usize = status_img_paths.len();
-    let img_index: usize = usize::try_from(img_randint % (num_images as u64)).unwrap();
-    let img_path: String = status_img_paths.get(img_index).unwrap().clone();
-
-    // pick a status message
-    let status_msgs: &Vec<String> = match *server_state.state {
-        LifeState::Alive => &server_state.config.global.ok_messages,
-        LifeState::Dead => &vec![server_state.config.global.death_message.clone()],
-        _ => &vec![server_state.config.global.uncertain_message.clone()],
-    };
-    let num_msgs: usize = status_msgs.len();
-    let msg_index: usize = usize::try_from(msg_randint % (num_msgs as u64)).unwrap();
-
-    let mut formatted_status_msg: String = status_msgs.get(msg_index).unwrap().clone();
-    formatted_status_msg = formatted_status_msg.replace("{0}", &name);
-
-    // get latest heartbeat table to display
-    let heartbeats: &[HeartbeatDisplay; 5] = &server_state.displayed_heartbeats;
-
-    let html = IndexTemplate {
-        name: name,
-        status_image: img_path,
-        status_message: formatted_status_msg,
-        row_1_timestamp: heartbeats[0].timestamp.clone(),
-        row_1_message: heartbeats[0].message.clone(),
-        row_2_timestamp: heartbeats[1].timestamp.clone(),
-        row_2_message: heartbeats[1].message.clone(),
-        row_3_timestamp: heartbeats[2].timestamp.clone(),
-        row_3_message: heartbeats[2].message.clone(),
-        row_4_timestamp: heartbeats[3].timestamp.clone(),
-        row_4_message: heartbeats[3].message.clone(),
-        row_5_timestamp: heartbeats[4].timestamp.clone(),
-        row_5_message: heartbeats[4].message.clone(),
-        show_note: match server_state.note {
-            Some(_) => String::default(),
-            None => "hidden".into(),
-        },
-        note_message: match server_state.note {
-            Some(note) => note.clone(),
-            None => String::default(),
-        },
-    }
-    .render()
-    .unwrap();
-
-    Html(html)
 }
 
 #[tokio::main]
@@ -185,25 +117,29 @@ async fn main() {
     };
     drop(contents);
 
-    // start the web server
-    let app = Router::new()
-        .route("/", get(index))
+    let initial_state: database::InitialState =
+        database::get_initial_state_from_disk("db.txt", daemon_config.clone());
+
+    // get the unix timestamp of this instant, so we can record the time at which
+    // the server was started. useful for avoiding immediately switching to a missing/dead
+    // state if the server was down for longer than the maximum silence period.
+    let boot_time: u64 = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+
+    // start the web server (with initial state)
+    let app: Router = Router::new()
+        .route("/", get(index::index))
         .with_state(ServerState {
-            state: Redundant::new(LifeState::default()),
+            state: Arc::new(Mutex::new(Redundant::new(initial_state.state))),
+            last_heartbeat: Arc::new(Mutex::new(Redundant::new(initial_state.last_heartbeat))),
+            server_start_time: Redundant::new(boot_time),
             config: daemon_config,
             rng: Arc::new(Mutex::new(OsRng::default())),
-            displayed_heartbeats: [
-                HeartbeatDisplay::default(),
-                HeartbeatDisplay::default(),
-                HeartbeatDisplay::default(),
-                HeartbeatDisplay::default(),
-                HeartbeatDisplay::default(),
-            ],
-            note: Some(
-                "Still working on the heartbeats system... if I actually die we'll never know haha"
-                    .into(),
-            ),
+            displayed_heartbeats: initial_state.heartbeat_display,
+            note: Arc::new(Mutex::new(initial_state.note)),
         });
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
+    let listener: TcpListener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
     axum::serve(listener, app).await.unwrap();
 }
