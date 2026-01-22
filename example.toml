@@ -5,8 +5,27 @@ time_until_uncertain = 24 # in hours
 time_until_death = 168 # 1 week in hours
 pow_difficulty = 5 # See: https://blog.trishtzy.com/2025/08/15/rate-limit-by-pow.html
 heartbeat_auth_hash = "<ARGON2ID HASH>"
-ok_images = ["/resources/happy-cat.webp"]
-ok_messages = ["{0} is alive and well. Thank you for checking."]
+ok_images = [
+    "/resources/happy-cat.webp",
+    "/resources/happy-cat-2.gif",
+    "/resources/happy-cat-3.gif",
+    "/resources/disco-cat.gif",
+    "/resources/dancing-cat.gif",
+    "/resources/dancing-cat-2.gif",
+]
+ok_messages = [
+    "{0} is alive and well. Thank you for checking.",
+    "{0} is alive and well. We checked.",
+    "{0} is alive and well. Send snacks.",
+    "{0} is alive and well. Send cats.",
+    "{0} is still with us, don't worry.",
+    "{0} is still alive. Check again tomorrow.",
+    "{0} is still alive and uncontained.",
+    "{0} is still alive so far. Yay",
+    "{0} is alive. ... Would be crazy if they weren't",
+    "{0} is still alive. What made you check?",
+    "{0} is still alive. Might not be anymore if you refresh...",
+]
 uncertain_images = ["/resources/worried-cat.webp"]
 uncertain_message = "{0} has not sent a heartbeat in the past {1} hours."
 death_images = ["/resources/sad-cat.webp"]

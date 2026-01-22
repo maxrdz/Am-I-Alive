@@ -17,26 +17,41 @@
     License along with "Am I Alive". If not, see <https://www.gnu.org/licenses/>.
 */
 
+mod config;
+mod redundancy;
+
+use askama::Template;
 use axum::{
-    response::{Html, IntoResponse},
-    routing::get,
     Router,
     extract::State,
+    response::{Html, IntoResponse},
+    routing::get,
 };
-use askama::Template;
-use std::io::Read;
+use rand::rand_core::{OsRng, TryRngCore};
+use redundancy::Redundant;
 use std::fs::File;
-use std::sync::Arc;
-
-mod config;
+use std::io::Read;
+use std::sync::{Arc, Mutex, MutexGuard};
 
 const MAX_DISPLAYED_HEARTBEATS: usize = 5;
 
 #[derive(Clone)]
 struct ServerState {
+    state: Redundant<LifeState>,
     config: Arc<config::ServerConfig>,
+    rng: Arc<Mutex<OsRng>>,
     displayed_heartbeats: [HeartbeatDisplay; MAX_DISPLAYED_HEARTBEATS],
     note: Option<String>,
+}
+
+#[derive(Default, Clone, Copy, PartialEq, Eq)]
+enum LifeState {
+    #[default]
+    Alive,
+    ProbablyAlive,
+    Coma,
+    MissingOrDead,
+    Dead,
 }
 
 #[derive(Clone)]
@@ -49,7 +64,7 @@ impl Default for HeartbeatDisplay {
     fn default() -> Self {
         HeartbeatDisplay {
             timestamp: String::from("Jan 1 1970 @ 12:00 AM"),
-            message: String::from("N/A")
+            message: String::from("N/A"),
         }
     }
 }
@@ -74,19 +89,48 @@ struct IndexTemplate {
     note_message: String,
 }
 
-async fn index(
-    State(server_state): State<ServerState>,
-) -> impl IntoResponse {
-    let name: String = server_state.config.global.name.clone();
-    
-    let mut formatted_status_msg: String = server_state.config.global.ok_messages.get(0).unwrap().clone();
+async fn index(State(server_state): State<ServerState>) -> impl IntoResponse {
+    // first get a random number from the OS rng
+    let mut rng: MutexGuard<'_, OsRng> =
+        server_state.rng.lock().expect("Failed to lock RNG mutex.");
+    let img_randint: u64 = rng.try_next_u64().expect("OS RNG error.");
+    let msg_randint: u64 = rng.try_next_u64().expect("OS RNG error.");
+    drop(rng);
+
+    // short name when alive, full name when in any negative state.
+    let name: String = match *server_state.state {
+        LifeState::Alive => server_state.config.global.name.clone(),
+        _ => server_state.config.global.full_name.clone(),
+    };
+
+    // pick a status image
+    let status_img_paths: &Vec<String> = match *server_state.state {
+        LifeState::Alive => &server_state.config.global.ok_images,
+        LifeState::Dead => &server_state.config.global.death_images,
+        _ => &server_state.config.global.uncertain_images,
+    };
+    let num_images: usize = status_img_paths.len();
+    let img_index: usize = usize::try_from(img_randint % (num_images as u64)).unwrap();
+    let img_path: String = status_img_paths.get(img_index).unwrap().clone();
+
+    // pick a status message
+    let status_msgs: &Vec<String> = match *server_state.state {
+        LifeState::Alive => &server_state.config.global.ok_messages,
+        LifeState::Dead => &vec![server_state.config.global.death_message.clone()],
+        _ => &vec![server_state.config.global.uncertain_message.clone()],
+    };
+    let num_msgs: usize = status_msgs.len();
+    let msg_index: usize = usize::try_from(msg_randint % (num_msgs as u64)).unwrap();
+
+    let mut formatted_status_msg: String = status_msgs.get(msg_index).unwrap().clone();
     formatted_status_msg = formatted_status_msg.replace("{0}", &name);
 
+    // get latest heartbeat table to display
     let heartbeats: &[HeartbeatDisplay; 5] = &server_state.displayed_heartbeats;
 
     let html = IndexTemplate {
         name: name,
-        status_image: server_state.config.global.ok_images.get(0).unwrap().into(),
+        status_image: img_path,
         status_message: formatted_status_msg,
         row_1_timestamp: heartbeats[0].timestamp.clone(),
         row_1_message: heartbeats[0].message.clone(),
@@ -126,7 +170,9 @@ async fn main() {
     };
     let mut contents: String = String::new();
 
-    conf_file.read_to_string(&mut contents).expect("Failed to read file contents to string.");
+    conf_file
+        .read_to_string(&mut contents)
+        .expect("Failed to read file contents to string.");
     drop(conf_file); // we're in the main scope, so lets drop manually here
 
     // deserialize the TOML config file to our [`config::ServerConfig`] struct.
@@ -143,13 +189,20 @@ async fn main() {
     let app = Router::new()
         .route("/", get(index))
         .with_state(ServerState {
+            state: Redundant::new(LifeState::default()),
             config: daemon_config,
+            rng: Arc::new(Mutex::new(OsRng::default())),
             displayed_heartbeats: [
-                HeartbeatDisplay::default(), HeartbeatDisplay::default(),
-                HeartbeatDisplay::default(), HeartbeatDisplay::default(),
-                HeartbeatDisplay::default()
+                HeartbeatDisplay::default(),
+                HeartbeatDisplay::default(),
+                HeartbeatDisplay::default(),
+                HeartbeatDisplay::default(),
+                HeartbeatDisplay::default(),
             ],
-            note: Some("testing 123".into()),
+            note: Some(
+                "Still working on the heartbeats system... if I actually die we'll never know haha"
+                    .into(),
+            ),
         });
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
     axum::serve(listener, app).await.unwrap();
