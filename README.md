@@ -1,5 +1,7 @@
 # Am I Alive
 
+![status.maxrdz.com](./.gitlab/sample.png)
+
 ## Notes for implementation:
 
 Heartbeat URL: status.maxrdz.com/heartbeat
