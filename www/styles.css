@@ -114,6 +114,10 @@ h1 {
     background-color: #c10e203c;
 }
 
+.container.heartbeat td {
+    min-width: 50%;
+}
+
 .container.vertical {
     display: block;
     padding: 0;
@@ -183,7 +187,8 @@ footer p {
     }
 
     .container.note {
-        width: 100%;
+        max-width: 90%;
+        width: 90%;
     }
 
     h1 {
