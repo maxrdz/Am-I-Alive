@@ -1,12 +1,15 @@
 FROM rust:1.90-slim AS builder
 
-# Create app directory
 WORKDIR /app
 
-# Copy actual source
-COPY . .
+# Build with only dependencies to cache them at this stage of the docker build
+COPY Cargo.toml Cargo.lock ./
+RUN mkdir src && echo "fn main() {}" > src/main.rs
+RUN cargo build --release
+RUN rm -rf src
 
-# Build application
+# Copy actual source and build
+COPY . .
 RUN cargo build --release
 
 # ---------- Runtime Stage ----------
