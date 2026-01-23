@@ -17,6 +17,7 @@
     License along with "Am I Alive". If not, see <https://www.gnu.org/licenses/>.
 */
 
+mod api;
 mod config;
 mod database;
 mod redundancy;
@@ -32,6 +33,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::net::TcpListener;
 use tokio::sync::Mutex;
 
+const CONFIG_PATH: &str = "/app/config.toml";
+const DB_PATH: &str = "/app/db.txt";
 const MAX_DISPLAYED_HEARTBEATS: usize = 5;
 
 #[derive(Clone)]
@@ -45,6 +48,11 @@ struct ServerState {
     rng: Arc<Mutex<OsRng>>,
     displayed_heartbeats: [HeartbeatDisplay; MAX_DISPLAYED_HEARTBEATS],
     note: Arc<Mutex<Option<String>>>,
+    /// Instead of borrowing locks for the server state on every
+    /// API call, just bake a response every time the state is updated.
+    ///
+    /// This way, every API call is simply a [`String`] clone.
+    baked_status_api_resp: Arc<Mutex<String>>,
 }
 
 #[derive(Default, Clone, Copy, PartialEq, Eq)]
@@ -104,8 +112,18 @@ impl Default for HeartbeatDisplay {
 
 #[tokio::main]
 async fn main() {
+    if !std::path::Path::new(CONFIG_PATH).exists() {
+        panic!(
+            "Configuration file is missing or not accessible at: {}",
+            CONFIG_PATH
+        );
+    }
+    if !std::path::Path::new(DB_PATH).exists() {
+        panic!("Database file is missing or not accessible at: {}", DB_PATH);
+    }
+
     // read the configuration file
-    let mut conf_file: File = match File::open("config.toml") {
+    let mut conf_file: File = match File::open(CONFIG_PATH) {
         Err(err) => {
             println!("Could not load TOML configuration.");
             println!("Cannot start without a configuration file present.");
@@ -131,7 +149,7 @@ async fn main() {
     drop(contents);
 
     let initial_state: database::InitialState =
-        database::get_initial_state_from_disk("db.txt", daemon_config.clone());
+        database::get_initial_state_from_disk(DB_PATH, daemon_config.clone());
 
     // get the unix timestamp of this instant, so we can record the time at which
     // the server was started. useful for avoiding immediately switching to a missing/dead
@@ -145,6 +163,7 @@ async fn main() {
     let app: Router = Router::new()
         .route("/", get(templating::index))
         .route("/heartbeat", get(templating::heartbeat))
+        .route("/api/status", get(api::status_api))
         .with_state(ServerState {
             state: Arc::new(Mutex::new(Redundant::new(initial_state.state))),
             last_heartbeat: Arc::new(Mutex::new(Redundant::new(initial_state.last_heartbeat))),
@@ -153,6 +172,7 @@ async fn main() {
             rng: Arc::new(Mutex::new(OsRng::default())),
             displayed_heartbeats: initial_state.heartbeat_display,
             note: Arc::new(Mutex::new(initial_state.note)),
+            baked_status_api_resp: Arc::new(Mutex::new(String::default())),
         });
     let listener: TcpListener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
     axum::serve(listener, app).await.unwrap();

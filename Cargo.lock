@@ -12,6 +12,7 @@ dependencies = [
  "pow",
  "rand",
  "serde",
+ "serde_json",
  "tokio",
  "toml",
 ]
