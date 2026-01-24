@@ -78,7 +78,7 @@ impl ServerState {
             LifeState::Alive => {
                 // config variable is in hours, so translate to seconds by * 60 * 60.
                 let seconds_until_uncertain: u64 =
-                    u64::from(self.config.global.time_until_uncertain) * 60 * 60;
+                    u64::from(self.config.state.time_until_uncertain) * 60 * 60;
 
                 if seconds_since_last_seen > seconds_until_uncertain {
                     *locked_state = Redundant::new(LifeState::ProbablyAlive);
@@ -86,7 +86,7 @@ impl ServerState {
             }
             LifeState::ProbablyAlive => {
                 let seconds_until_missing: u64 =
-                    u64::from(self.config.global.time_until_missing) * 60 * 60;
+                    u64::from(self.config.state.time_until_missing) * 60 * 60;
 
                 if seconds_since_last_seen > seconds_until_missing {
                     *locked_state = Redundant::new(LifeState::MissingOrDead);

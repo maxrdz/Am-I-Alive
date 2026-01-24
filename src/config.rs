@@ -22,6 +22,7 @@ use serde::Deserialize;
 #[derive(Deserialize, PartialEq, Debug, Clone)]
 pub struct ServerConfig {
     pub global: Global,
+    pub state: StateGlobal,
 }
 
 #[derive(Deserialize, PartialEq, Debug, Clone)]
@@ -29,14 +30,37 @@ pub struct Global {
     pub name: String,
     pub full_name: String,
     pub utc_offset: i32,
-    pub time_until_uncertain: u16,
-    pub time_until_missing: u16,
     pub pow_difficulty: u8,
     pub heartbeat_auth_hash: String,
-    pub ok_images: Vec<String>,
-    pub ok_messages: Vec<String>,
-    pub uncertain_images: Vec<String>,
-    pub uncertain_message: String,
-    pub death_images: Vec<String>,
-    pub death_message: String,
+}
+
+#[derive(Deserialize, PartialEq, Debug, Clone)]
+pub struct StateGlobal {
+    pub time_until_uncertain: u16,
+    pub time_until_missing: u16,
+    #[serde(default)]
+    pub alive: State,
+    #[serde(default)]
+    pub uncertain: State,
+    #[serde(default)]
+    pub missing: State,
+    #[serde(default)]
+    pub incapacitated: State,
+    #[serde(default)]
+    pub dead: State,
+}
+
+#[derive(Deserialize, PartialEq, Debug, Clone)]
+pub struct State {
+    pub images: Vec<String>,
+    pub messages: Vec<String>,
+}
+
+impl Default for State {
+    fn default() -> Self {
+        Self {
+            images: vec!["https://placehold.co/400".into()],
+            messages: vec!["The last heartbeat received from {0} was {1} hour{2} ago.".into()],
+        }
+    }
 }

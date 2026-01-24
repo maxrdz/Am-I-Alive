@@ -1,12 +1,16 @@
 [global]
-name = "John"
-full_name = "John Doe"
-utc_offset = 0
-time_until_uncertain = 24 # in hours
-time_until_missing = 72 # in hours
+name = "Max"
+full_name = "Max Rodriguez"
+utc_offset = -7
 pow_difficulty = 5 # See: https://blog.trishtzy.com/2025/08/15/rate-limit-by-pow.html
 heartbeat_auth_hash = "<ARGON2ID HASH>"
-ok_images = [
+
+[state]
+time_until_uncertain = 24 # in hours
+time_until_missing = 72 # in hours
+
+[state.alive]
+images = [
     "/resources/happy-cat.webp",
     "/resources/happy-cat-2.gif",
     "/resources/happy-cat-3.gif",
@@ -14,7 +18,7 @@ ok_images = [
     "/resources/dancing-cat.gif",
     "/resources/dancing-cat-2.gif",
 ]
-ok_messages = [
+messages = [
     "{0} is alive and well. Thank you for checking.",
     "{0} is alive and well. We checked.",
     "{0} is alive and well. Send snacks.",
@@ -27,7 +31,19 @@ ok_messages = [
     "{0} is still alive. What made you check?",
     "{0} is still alive. Might not be anymore if you refresh...",
 ]
-uncertain_images = ["/resources/worried-cat.webp"]
-uncertain_message = "{0} has not sent a heartbeat in the past {1} hour{2}."
-death_images = ["/resources/sad-cat.webp"]
-death_message = "{0} has passed away."
+
+[state.uncertain]
+images = ["/resources/worried-cat.webp"]
+messages = ["{0} has not sent a heartbeat in the past {1} hour{2}."]
+
+[state.missing]
+images = ["/resources/worried-cat.webp"]
+messages = ["{0} has not sent a heartbeat in the past {1} hour{2}."]
+
+[state.incapacitated]
+images = ["/resources/worried-cat.webp"]
+messages = ["{0} has not sent a heartbeat in the past {1} hour{2}."]
+
+[state.dead]
+images = ["/resources/sad-cat.webp"]
+messages = ["{0} has passed away."]

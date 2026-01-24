@@ -25,7 +25,6 @@ use axum::{
     response::{Html, IntoResponse},
 };
 use rand::rand_core::{OsRng, TryRngCore};
-use std::ops::DerefMut;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::MutexGuard;
 
@@ -89,9 +88,11 @@ pub async fn index(State(server_state): State<ServerState>) -> impl IntoResponse
 
     // pick a status image
     let status_img_paths: &Vec<String> = match **locked_state {
-        LifeState::Alive => &server_state.config.global.ok_images,
-        LifeState::Dead => &server_state.config.global.death_images,
-        _ => &server_state.config.global.uncertain_images,
+        LifeState::Alive => &server_state.config.state.alive.images,
+        LifeState::ProbablyAlive => &server_state.config.state.uncertain.images,
+        LifeState::MissingOrDead => &server_state.config.state.missing.images,
+        LifeState::Incapacitated => &server_state.config.state.incapacitated.images,
+        LifeState::Dead => &server_state.config.state.dead.images,
     };
     let num_images: usize = status_img_paths.len();
     let img_index: usize = usize::try_from(img_randint % (num_images as u64)).unwrap();
@@ -99,11 +100,12 @@ pub async fn index(State(server_state): State<ServerState>) -> impl IntoResponse
 
     // pick a status message
     let status_msgs: &Vec<String> = match **locked_state {
-        LifeState::Alive => &server_state.config.global.ok_messages,
-        LifeState::Dead => &vec![server_state.config.global.death_message.clone()],
-        _ => &vec![server_state.config.global.uncertain_message.clone()],
+        LifeState::Alive => &server_state.config.state.alive.messages,
+        LifeState::ProbablyAlive => &server_state.config.state.uncertain.messages,
+        LifeState::MissingOrDead => &server_state.config.state.missing.messages,
+        LifeState::Incapacitated => &server_state.config.state.incapacitated.messages,
+        LifeState::Dead => &server_state.config.state.dead.messages,
     };
-
     let num_msgs: usize = status_msgs.len();
     let msg_index: usize = usize::try_from(msg_randint % (num_msgs as u64)).unwrap();
 
