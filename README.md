@@ -79,9 +79,27 @@ you alive. Though, that is close to impossible **if you chose a strong password*
   on the server's end is very cheap. It only has to calculate a SHA256 hash and check
   that the target has been met.
 
+- We store sensitive data (such as the current state, the last heartbeat timestamp,
+  etc.) in memory with a total of **3 copies** of the data. This way, if an insanely
+  rare event happens that leads to data corruption in your server's memory (like a
+  cosmic ray flipping a bit) the program will detect the corruption and panic before
+  it continues. I expect you are running the server in a container that is set to
+  restart itself when it crashes.
+
 - The server is written in Rust, a language designed with memory safety in mind. Many
   common software vulnerabilities (such as buffer overflows) are eliminated by Rust’s
   ownership model and type system, which enforce valid states at compile time and make
   many invalid states unrepresentable.
 
 ### **Please note that the best measure of defense is choosing a strong password!**
+
+# Legal
+
+Copyright © 2026 Max Rodriguez
+
+"Am I Alive?" can be found at https://gitlab.com/maxrdz/am-i-alive
+
+"Am I Alive?" is distributed under the terms of the GNU Affero General Public
+License, either version 3.0 or, at your option, any later
+version WITHOUT ANY WARRANTY. You can read the full copy of
+the software license in the COPYING file.
