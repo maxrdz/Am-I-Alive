@@ -17,7 +17,7 @@
                 <img src="{{ status_image }}" alt="Status Image">
             </div>
             <div class="status-message">
-                <h1>{{ status_title }}</h1>
+                <h1 style="color: {{ status_color }};">{{ status_title }}</h1>
                 <h2>{{ status_message }}</h2>
             </div>
         </div>
@@ -25,13 +25,13 @@
             <div class="container heartbeat">
                 <div id="heartbeat-header">
                     <div class="heart-container">
-                        <img src="/resources/heart.svg" alt="Heart Symbolic Icon" class="static-heart">
-                        <img src="/resources/heart.svg" alt="Heart Symbolic Icon" class="heart-pulse">
+                        <img src="/resources/heart.svg" alt="Heart Symbolic Icon" class="static-heart" id="{{ is_dead }}">
+                        <img src="/resources/heart.svg" alt="Heart Symbolic Icon" class="heart-pulse" id="{{ is_dead }}">
                     </div>
-                    <h1>Heartbeat History</h1>
+                    <h1 id="{{ is_dead }}">Heartbeat History</h1>
                 </div>
                 <table>
-                    <tbody>
+                    <tbody id="{{ is_dead }}">
                         <tr>
                             <th>Timestamp</th>
                             <th>Message</th>

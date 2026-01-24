@@ -98,6 +98,11 @@ h2 {
     animation: pulse 0.75s infinite ease-in-out;
 }
 
+#dead {
+    filter: grayscale(1);
+    animation: none;
+}
+
 @keyframes pulse {
   0% {
     transform: scale(1);

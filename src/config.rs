@@ -30,7 +30,7 @@ pub struct Global {
     pub full_name: String,
     pub utc_offset: i32,
     pub time_until_uncertain: u16,
-    pub time_until_death: u16,
+    pub time_until_missing: u16,
     pub pow_difficulty: u8,
     pub heartbeat_auth_hash: String,
     pub ok_images: Vec<String>,

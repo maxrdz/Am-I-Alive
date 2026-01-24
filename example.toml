@@ -3,7 +3,7 @@ name = "John"
 full_name = "John Doe"
 utc_offset = 0
 time_until_uncertain = 24 # in hours
-time_until_death = 168 # 1 week in hours
+time_until_missing = 72 # in hours
 pow_difficulty = 5 # See: https://blog.trishtzy.com/2025/08/15/rate-limit-by-pow.html
 heartbeat_auth_hash = "<ARGON2ID HASH>"
 ok_images = [
@@ -23,11 +23,11 @@ ok_messages = [
     "{0} is still alive. Check again tomorrow.",
     "{0} is still alive and uncontained.",
     "{0} is still alive so far. Yay",
-    "{0} is alive. ... Would be crazy if they weren't",
+    "{0} is alive... Would be crazy if they weren't",
     "{0} is still alive. What made you check?",
     "{0} is still alive. Might not be anymore if you refresh...",
 ]
 uncertain_images = ["/resources/worried-cat.webp"]
-uncertain_message = "{0} has not sent a heartbeat in the past {1} hours."
+uncertain_message = "{0} has not sent a heartbeat in the past {1} hour{2}."
 death_images = ["/resources/sad-cat.webp"]
 death_message = "{0} has passed away."

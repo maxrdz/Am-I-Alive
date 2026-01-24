@@ -65,9 +65,30 @@ enum LifeState {
     /// enter this state after the end of the maximum silence period
     MissingOrDead,
     /// enter this state once verified by 1 or more trusted users
-    Coma,
+    Incapacitated,
     /// enter this state once verified by 1 or more trusted users
     Dead,
+}
+
+/// Implement on any enum that represents a state which has an
+/// associated visual CSS color on the rendered HTML.
+trait AssociatedColor
+where
+    Self: PartialEq + Eq,
+{
+    fn css_color(&self) -> String;
+}
+
+impl AssociatedColor for LifeState {
+    fn css_color(&self) -> String {
+        match self {
+            LifeState::Alive => "#008200".into(),
+            LifeState::ProbablyAlive => "#769f00".into(),
+            LifeState::MissingOrDead => "#ff0000".into(),
+            LifeState::Incapacitated => "#2832c0".into(),
+            LifeState::Dead => "#3c3d68".into(),
+        }
+    }
 }
 
 impl std::fmt::Display for LifeState {
@@ -76,7 +97,7 @@ impl std::fmt::Display for LifeState {
             Self::Alive => write!(f, "ALIVE"),
             Self::ProbablyAlive => write!(f, "PROBABLY ALIVE"),
             Self::MissingOrDead => write!(f, "MISSING OR DEAD"),
-            Self::Coma => write!(f, "ALIVE BUT UNRESPONSIVE"),
+            Self::Incapacitated => write!(f, "ALIVE BUT INCAPACITATED"),
             Self::Dead => write!(f, "DEAD"),
         }
     }
@@ -88,7 +109,7 @@ impl From<&str> for LifeState {
             "0" => Self::Alive,
             "1" => Self::ProbablyAlive,
             "2" => Self::MissingOrDead,
-            "3" => Self::Coma,
+            "3" => Self::Incapacitated,
             "4" => Self::Dead,
             _ => panic!("'{}' does not represent a valid state!", value),
         }

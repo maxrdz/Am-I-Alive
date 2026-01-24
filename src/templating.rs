@@ -18,19 +18,26 @@
 */
 
 use crate::redundancy::Redundant;
-use crate::{HeartbeatDisplay, LifeState, ServerState};
+use crate::{AssociatedColor, HeartbeatDisplay, LifeState, ServerState};
 use askama::Template;
 use axum::{
     extract::State,
     response::{Html, IntoResponse},
 };
 use rand::rand_core::{OsRng, TryRngCore};
+use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::MutexGuard;
+
+// any specific IDs that we assign to HTML elements
+// dynamically depending on our state
+const HIDE_CSS_ID: &'static str = "hidden";
+const DEAD_CSS_ID: &'static str = "dead";
 
 #[derive(Template)]
 #[template(path = "index.html")]
 struct IndexTemplate {
     name: String,
+    status_color: String,
     status_image: String,
     status_title: String,
     status_message: String,
@@ -46,6 +53,7 @@ struct IndexTemplate {
     row_5_message: String,
     show_note: String,
     note_message: String,
+    is_dead: String,
 }
 
 pub async fn index(State(server_state): State<ServerState>) -> impl IntoResponse {
@@ -64,6 +72,13 @@ pub async fn index(State(server_state): State<ServerState>) -> impl IntoResponse
     };
 
     let status_title: String = locked_state.to_string();
+    let status_color: String = locked_state.css_color();
+
+    // whether we want to grayscale certain UI elements out of respect
+    let is_dead: String = match **locked_state {
+        LifeState::Dead | LifeState::MissingOrDead => DEAD_CSS_ID.into(),
+        _ => "".into(),
+    };
 
     // pick a status image
     let status_img_paths: &Vec<String> = match **locked_state {
@@ -81,13 +96,54 @@ pub async fn index(State(server_state): State<ServerState>) -> impl IntoResponse
         LifeState::Dead => &vec![server_state.config.global.death_message.clone()],
         _ => &vec![server_state.config.global.uncertain_message.clone()],
     };
-    drop(locked_state); // drop mutex as we no longer will read state
 
     let num_msgs: usize = status_msgs.len();
     let msg_index: usize = usize::try_from(msg_randint % (num_msgs as u64)).unwrap();
 
     let mut formatted_status_msg: String = status_msgs.get(msg_index).unwrap().clone();
     formatted_status_msg = formatted_status_msg.replace("{0}", &name);
+
+    // if we're in the uncertain/unresponsive state, we need to also
+    // format the number of hours since the last heartbeat
+    match **locked_state {
+        LifeState::ProbablyAlive | LifeState::MissingOrDead | LifeState::Incapacitated => {
+            let last_seen: u64 = **server_state.last_heartbeat.lock().await;
+            let now: u64 = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_secs();
+
+            // just a sanity check to make sure this isnt possible past this point
+            assert!(
+                last_seen < now,
+                "Last heartbeat recorded happened in the future!"
+            );
+            // also make sure we're able to truncate it to a u32 to convert to f64 later
+            assert!((now - last_seen) <= u32::MAX.into());
+
+            let seconds_since_last_seen: u32 = (now - last_seen) as u32;
+            let mut hours_since_last_seen: f64 =
+                ((f64::from(seconds_since_last_seen) / 60.0) / 60.0).round();
+
+            // floor to 1 hour, so we don't display "last seen 0 hour ago."
+            if hours_since_last_seen < 1_f64 {
+                hours_since_last_seen = 1_f64;
+            }
+
+            formatted_status_msg =
+                formatted_status_msg.replace("{1}", &hours_since_last_seen.to_string());
+
+            let mut plural_str: &str = "";
+
+            if hours_since_last_seen > 1_f64 {
+                // make the text, 'hour', plural to 'hours'.
+                plural_str = "s";
+            }
+            formatted_status_msg = formatted_status_msg.replace("{2}", plural_str);
+        }
+        _ => {}
+    }
+    drop(locked_state); // drop mutex as we no longer will read state
 
     // get latest heartbeat table to display
     let heartbeats: &[HeartbeatDisplay; 5] = &server_state.displayed_heartbeats;
@@ -97,6 +153,7 @@ pub async fn index(State(server_state): State<ServerState>) -> impl IntoResponse
     let html = IndexTemplate {
         name,
         status_title,
+        status_color,
         status_image: img_path,
         status_message: formatted_status_msg,
         row_1_timestamp: heartbeats[0].timestamp.clone(),
@@ -111,12 +168,13 @@ pub async fn index(State(server_state): State<ServerState>) -> impl IntoResponse
         row_5_message: heartbeats[4].message.clone(),
         show_note: match *locked_note {
             Some(_) => String::default(),
-            None => "hidden".into(),
+            None => HIDE_CSS_ID.into(),
         },
         note_message: match &*locked_note {
             Some(note) => note.clone(),
             None => String::default(),
         },
+        is_dead,
     }
     .render()
     .unwrap();
