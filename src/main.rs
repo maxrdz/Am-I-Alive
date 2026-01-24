@@ -31,7 +31,7 @@ use std::io::Read;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::net::TcpListener;
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, MutexGuard};
 
 const CONFIG_PATH: &str = "/app/config.toml";
 const DB_PATH: &str = "/app/db.txt";
@@ -53,6 +53,56 @@ struct ServerState {
     ///
     /// This way, every API call is simply a [`String`] clone.
     baked_status_api_resp: Arc<Mutex<String>>,
+}
+
+impl ServerState {
+    /// Called at every point in the program where the latest state
+    /// should be returned. (e.g. front page, /api/status)
+    ///
+    /// Refreshes the shared application state based on current Unix timestamp.
+    ///
+    async fn update(&self, now_unix_timestamp: u64) {
+        let last_seen: u64 = *self.last_heartbeat.lock().await.clone();
+        // just a sanity check to make sure this isnt possible past this point
+        assert!(
+            last_seen < now_unix_timestamp,
+            "Last heartbeat recorded happened in the future!"
+        );
+
+        let seconds_since_last_seen: u64 = now_unix_timestamp - last_seen;
+
+        let mut locked_state: MutexGuard<'_, Redundant<LifeState>> = self.state.lock().await;
+        let mut changed: bool = true;
+
+        match **locked_state {
+            LifeState::Alive => {
+                // config variable is in hours, so translate to seconds by * 60 * 60.
+                let seconds_until_uncertain: u64 =
+                    u64::from(self.config.global.time_until_uncertain) * 60 * 60;
+
+                if seconds_since_last_seen > seconds_until_uncertain {
+                    *locked_state = Redundant::new(LifeState::ProbablyAlive);
+                }
+            }
+            LifeState::ProbablyAlive => {
+                let seconds_until_missing: u64 =
+                    u64::from(self.config.global.time_until_missing) * 60 * 60;
+
+                if seconds_since_last_seen > seconds_until_missing {
+                    *locked_state = Redundant::new(LifeState::MissingOrDead);
+                }
+            }
+            // other states can only be reached by manual interaction
+            // (e.g. trusted user verifying the state of the person, or the person sending a new heartbeat)
+            _ => changed = false,
+        }
+        drop(locked_state);
+
+        if changed {
+            // re-bake any baked stuff
+            let _: String = api::bake_status_api_response(self.clone()).await;
+        }
+    }
 }
 
 #[derive(Default, Clone, Copy, PartialEq, Eq)]

@@ -24,6 +24,7 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use serde::{Deserialize, Serialize};
 use serde_json::{self, Error};
+use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::MutexGuard;
 
 /// Rust Representation of the JSON response
@@ -80,6 +81,12 @@ pub async fn bake_status_api_response(server_state: ServerState) -> String {
 }
 
 pub async fn status_api(State(server_state): State<ServerState>) -> impl IntoResponse {
+    let now: u64 = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+    server_state.update(now).await;
+
     // simply lock the baked response stored in our shared state & clone the JSON string
     let mut baked_response: String = server_state.baked_status_api_resp.lock().await.clone();
 

@@ -25,6 +25,7 @@ use axum::{
     response::{Html, IntoResponse},
 };
 use rand::rand_core::{OsRng, TryRngCore};
+use std::ops::DerefMut;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::MutexGuard;
 
@@ -57,6 +58,12 @@ struct IndexTemplate {
 }
 
 pub async fn index(State(server_state): State<ServerState>) -> impl IntoResponse {
+    let now: u64 = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+    server_state.update(now).await;
+
     // first get a random number from the OS rng
     let mut rng: MutexGuard<'_, OsRng> = server_state.rng.lock().await;
     let img_randint: u64 = rng.try_next_u64().expect("OS RNG error.");
@@ -108,10 +115,6 @@ pub async fn index(State(server_state): State<ServerState>) -> impl IntoResponse
     match **locked_state {
         LifeState::ProbablyAlive | LifeState::MissingOrDead | LifeState::Incapacitated => {
             let last_seen: u64 = **server_state.last_heartbeat.lock().await;
-            let now: u64 = SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_secs();
 
             // just a sanity check to make sure this isnt possible past this point
             assert!(
