@@ -1,7 +1,7 @@
 [global]
-name = "Max"
-full_name = "Max Rodriguez"
-utc_offset = -7
+name = "John"
+full_name = "John Doe"
+utc_offset = 0
 pow_difficulty = 5 # See: https://blog.trishtzy.com/2025/08/15/rate-limit-by-pow.html
 heartbeat_auth_hash = "<ARGON2ID HASH>"
 
