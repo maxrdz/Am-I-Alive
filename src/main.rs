@@ -32,7 +32,9 @@ use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::net::TcpListener;
 use tokio::sync::{Mutex, MutexGuard};
+use tokio::time::{self, Duration, Interval};
 
+const BIND_ADDRESS: &str = "0.0.0.0:3000";
 const CONFIG_PATH: &str = "/app/config.toml";
 const DB_PATH: &str = "/app/db.txt";
 const MAX_DISPLAYED_HEARTBEATS: usize = 5;
@@ -230,21 +232,49 @@ async fn main() {
         .unwrap()
         .as_secs();
 
+    // build our state struct
+    let server_state: ServerState = ServerState {
+        state: Arc::new(Mutex::new(Redundant::new(initial_state.state))),
+        last_heartbeat: Arc::new(Mutex::new(Redundant::new(initial_state.last_heartbeat))),
+        server_start_time: Redundant::new(boot_time),
+        config: daemon_config,
+        rng: Arc::new(Mutex::new(OsRng::default())),
+        displayed_heartbeats: initial_state.heartbeat_display,
+        note: Arc::new(Mutex::new(initial_state.note)),
+        baked_status_api_resp: Arc::new(Mutex::new(String::default())),
+    };
+
+    // start a tokio job that updates our state every tick interval.
+    //
+    // this is useful for the digital will to take effect even if
+    // no one is sending HTTP requests to serving endpoints
+    tokio::spawn({
+        let state: ServerState = server_state.clone();
+
+        async move {
+            let ival: u64 = state.config.state.tick_interval.clone().into();
+            let mut interval: Interval = time::interval(Duration::from_secs(ival * 60));
+
+            loop {
+                interval.tick().await;
+                println!("Updating state per tick interval.");
+
+                let now: u64 = SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs();
+                state.update(now).await;
+            }
+        }
+    });
+
     // start the web server (with initial state)
     let app: Router = Router::new()
         .route("/", get(templating::index))
         .route("/heartbeat", get(templating::heartbeat))
         .route("/api/status", get(api::status_api))
-        .with_state(ServerState {
-            state: Arc::new(Mutex::new(Redundant::new(initial_state.state))),
-            last_heartbeat: Arc::new(Mutex::new(Redundant::new(initial_state.last_heartbeat))),
-            server_start_time: Redundant::new(boot_time),
-            config: daemon_config,
-            rng: Arc::new(Mutex::new(OsRng::default())),
-            displayed_heartbeats: initial_state.heartbeat_display,
-            note: Arc::new(Mutex::new(initial_state.note)),
-            baked_status_api_resp: Arc::new(Mutex::new(String::default())),
-        });
-    let listener: TcpListener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
+        .with_state(server_state.clone());
+
+    let listener: TcpListener = tokio::net::TcpListener::bind(BIND_ADDRESS).await.unwrap();
     axum::serve(listener, app).await.unwrap();
 }

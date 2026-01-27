@@ -36,6 +36,7 @@ pub struct Global {
 
 #[derive(Deserialize, PartialEq, Debug, Clone)]
 pub struct StateGlobal {
+    pub tick_interval: u16,
     pub time_until_uncertain: u16,
     pub time_until_missing: u16,
     #[serde(default)]

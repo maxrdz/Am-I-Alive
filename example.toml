@@ -6,6 +6,7 @@ pow_difficulty = 5 # See: https://blog.trishtzy.com/2025/08/15/rate-limit-by-pow
 heartbeat_auth_hash = "<ARGON2ID HASH>"
 
 [state]
+tick_interval = 60 # in minutes
 time_until_uncertain = 24 # in hours
 time_until_missing = 72 # in hours
 
