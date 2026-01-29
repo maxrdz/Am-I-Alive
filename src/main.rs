@@ -134,11 +134,11 @@ where
 impl AssociatedColor for LifeState {
     fn css_color(&self) -> String {
         match self {
-            LifeState::Alive => "#008200".into(),
-            LifeState::ProbablyAlive => "#769f00".into(),
-            LifeState::MissingOrDead => "#ff0000".into(),
-            LifeState::Incapacitated => "#2832c0".into(),
-            LifeState::Dead => "#3c3d68".into(),
+            LifeState::Alive => "#00cd00".into(),
+            LifeState::ProbablyAlive => "#b1d000".into(),
+            LifeState::MissingOrDead => "#d80000".into(),
+            LifeState::Incapacitated => "#515cef".into(),
+            LifeState::Dead => "#828282".into(),
         }
     }
 }

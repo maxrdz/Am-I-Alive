@@ -2,11 +2,16 @@
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+    color: #dbdbdb;
+}
+
+a {
+    color: #9c8bff;
 }
 
 body {
     margin: 0;
-    background-color: #f3f4f6;
+    background-color: #0b0f18;
     font-family: 'Verdana', sans-serif;
 }
 
@@ -19,7 +24,7 @@ body {
 
 .container {
     text-align: center;
-    background-color: white;
+    background-color: #111821;
     border-radius: 12px;
     padding: 45px;
     box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
@@ -41,7 +46,6 @@ h1 {
 
 h2 {
     font-size: 1.75rem;
-    color: #333;
 }
 
 .cat-image img {
@@ -62,12 +66,11 @@ h2 {
 
 .status-message h2 {
     margin-bottom: 20px;
-    color: #333;
     font-weight: 100;
 }
 
 .container.heartbeat h1 {
-    color: #c10e21;
+    color: #ed1329;
 }
 
 #heartbeat-header {
@@ -126,7 +129,7 @@ h2 {
 }
 
 .container.heartbeat table tr:nth-child(even) {
-    background-color: #c10e203c;
+    background-color: #ed132936;
 }
 
 .container.heartbeat td {
@@ -149,7 +152,7 @@ h2 {
     width: fit-content;
     padding: 15px;
     margin-top: 40px;
-    background-color: #feff9c;
+    background-color: #535600;
     max-height: 100px;
     overflow-y: scroll;
     margin: auto;
@@ -163,14 +166,17 @@ h2 {
     height: 0;
 }
 
+input {
+    background-color: #151e2a;
+}
+
 footer {
-    background-color: #f3f4f6;
     height: 5vh;
     align-content: center;
 }
 
 footer p {
-    color: black;
+    color: white;
     font-family: Verdana, Geneva, Tahoma, sans-serif;
     font-size: 13px;
     text-align: center;
