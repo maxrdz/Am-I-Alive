@@ -107,18 +107,14 @@ pub fn get_initial_state_from_disk(path: &str, config: Arc<ServerConfig>) -> Ini
         if line_number <= 3 {
             break;
         }
-        let mut data: Vec<&str> = line.split(' ').collect();
-
-        // assert we have 2 items. (timestamp, message)
-        assert!(
-            data.len() == 2,
-            "Invalid heartbeat entry on db line {}",
-            line_number
-        );
+        let split_index: usize = match line.find(" ") {
+            Some(index) => index,
+            None => panic!("Corrupted database entry on line {}", line_number),
+        };
+        let data: (&str, &str) = line.split_at(split_index);
 
         let unix_timestamp: i64 = data
-            .get(0)
-            .unwrap()
+            .0
             .parse::<i64>()
             .expect(&format!("Invalid unix timestamp on line {}", line_number));
 
@@ -129,10 +125,15 @@ pub fn get_initial_state_from_disk(path: &str, config: Arc<ServerConfig>) -> Ini
             .timestamp_opt(unix_timestamp, 0)
             .unwrap()
             .to_rfc2822();
-        let message: String = data.pop().unwrap().to_owned();
 
         heartbeat_display[i].timestamp = ts;
-        heartbeat_display[i].message = message;
+
+        let mut message: String = data.1.to_owned();
+        let _: char = message.remove(0);
+
+        if !message.is_empty() {
+            heartbeat_display[i].message = message;
+        }
     }
 
     InitialState {
