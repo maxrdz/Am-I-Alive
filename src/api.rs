@@ -205,7 +205,9 @@ pub async fn heartbeat_api(
     if req.remove_current_note {
         let _: Option<String> = locked_note.take();
     } else {
-        let _: Option<String> = locked_note.replace(req.updated_note);
+        if !req.updated_note.is_empty() {
+            let _: Option<String> = locked_note.replace(req.updated_note);
+        }
     }
     drop(locked_note);
 
