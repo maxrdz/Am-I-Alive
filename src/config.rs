@@ -22,6 +22,7 @@ use serde::Deserialize;
 #[derive(Deserialize, PartialEq, Debug, Clone)]
 pub struct ServerConfig {
     pub global: Global,
+    pub pow: Pow,
     pub state: StateGlobal,
 }
 
@@ -30,8 +31,13 @@ pub struct Global {
     pub name: String,
     pub full_name: String,
     pub utc_offset: i32,
-    pub pow_difficulty: u8,
     pub heartbeat_auth_hash: String,
+}
+
+#[derive(Deserialize, PartialEq, Debug, Clone)]
+pub struct Pow {
+    pub secret: String,
+    pub difficulty: u8,
 }
 
 #[derive(Deserialize, PartialEq, Debug, Clone)]

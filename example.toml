@@ -2,8 +2,16 @@
 name = "John"
 full_name = "John Doe"
 utc_offset = 0
-pow_difficulty = 5 # See: https://blog.trishtzy.com/2025/08/15/rate-limit-by-pow.html
 heartbeat_auth_hash = "<ARGON2ID HASH>"
+
+[pow]
+# Generate the following secret using `openssl rand -hex 32`.
+# This is used when generating PoW challenges; It ensures a client cannot guess
+# what the next generated challenge will be, which blocks pre-computation attacks.
+secret = "<256-BIT SECRET>"
+# PoW difficulty. Already set to the recommended default.
+# See: https://blog.trishtzy.com/2025/08/15/rate-limit-by-pow.html
+difficulty = 5
 
 [state]
 tick_interval = 60 # in minutes

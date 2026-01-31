@@ -23,11 +23,17 @@ mod database;
 mod redundancy;
 mod templating;
 
-use axum::{Router, routing::get};
+use argon2::password_hash::PasswordHash;
+use axum::{
+    Router,
+    routing::{get, post},
+};
 use rand::rand_core::OsRng;
 use redundancy::Redundant;
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
+use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::net::TcpListener;
@@ -38,6 +44,8 @@ const BIND_ADDRESS: &str = "0.0.0.0:3000";
 const CONFIG_PATH: &str = "/app/config.toml";
 const DB_PATH: &str = "/app/db.txt";
 const MAX_DISPLAYED_HEARTBEATS: usize = 5;
+const INITIAL_RATE_LIMIT_PERIOD: u64 = 5 * 60;
+const RATE_LIMIT_PERIOD_FACTOR: u64 = 2;
 
 #[derive(Clone)]
 struct ServerState {
@@ -48,6 +56,9 @@ struct ServerState {
     server_start_time: Redundant<u64>,
     config: Arc<config::ServerConfig>,
     rng: Arc<Mutex<OsRng>>,
+    /// The parsed Argon2id password hash from our configuration file.
+    /// Used to authenticate new heartbeat requests.
+    password_hash: PasswordHash<'static>,
     displayed_heartbeats: [HeartbeatDisplay; MAX_DISPLAYED_HEARTBEATS],
     note: Arc<Mutex<Option<String>>>,
     /// Instead of borrowing locks for the server state on every
@@ -55,6 +66,15 @@ struct ServerState {
     ///
     /// This way, every API call is simply a [`String`] clone.
     baked_status_api_resp: Arc<Mutex<String>>,
+    /// Store rate limiting expiration timestamps per IPv4/IPv6 address.
+    rate_limited_ips: Arc<Mutex<HashMap<SocketAddr, RateLimit>>>,
+}
+
+struct RateLimit {
+    /// the amount of time (seconds) this rate limit lasts for
+    period: u64,
+    /// the unix timestamp (seconds) of when the rate limit block expires
+    timestamp: u64,
 }
 
 impl ServerState {
@@ -232,16 +252,23 @@ async fn main() {
         .unwrap()
         .as_secs();
 
+    // get the password hash from our config and leak the string so we have
+    // a string with a guaranteed static lifetime, required to store the [`PasswordHash`]
+    // struct in our app shared state for quick password verification.
+    let pwd_hash_str: &mut str = daemon_config.global.heartbeat_auth_hash.clone().leak();
+
     // build our state struct
     let server_state: ServerState = ServerState {
         state: Arc::new(Mutex::new(Redundant::new(initial_state.state))),
         last_heartbeat: Arc::new(Mutex::new(Redundant::new(initial_state.last_heartbeat))),
         server_start_time: Redundant::new(boot_time),
-        config: daemon_config,
+        config: daemon_config.clone(),
         rng: Arc::new(Mutex::new(OsRng::default())),
+        password_hash: PasswordHash::new(pwd_hash_str).expect("Invalid Argon2id hash."),
         displayed_heartbeats: initial_state.heartbeat_display,
         note: Arc::new(Mutex::new(initial_state.note)),
         baked_status_api_resp: Arc::new(Mutex::new(String::default())),
+        rate_limited_ips: Arc::new(Mutex::new(HashMap::default())),
     };
 
     // start a tokio job that updates our state every tick interval.
@@ -273,8 +300,14 @@ async fn main() {
         .route("/", get(templating::index))
         .route("/heartbeat", get(templating::heartbeat))
         .route("/api/status", get(api::status_api))
-        .with_state(server_state.clone());
+        .route("/api/heartbeat", post(api::heartbeat_api))
+        .with_state(server_state);
 
     let listener: TcpListener = tokio::net::TcpListener::bind(BIND_ADDRESS).await.unwrap();
-    axum::serve(listener, app).await.unwrap();
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<SocketAddr>(),
+    )
+    .await
+    .unwrap();
 }
