@@ -150,9 +150,9 @@ pub async fn index(State(server_state): State<ServerState>) -> impl IntoResponse
     }
     drop(locked_state); // drop mutex as we no longer will read state
 
-    // get latest heartbeat table to display
-    let heartbeats: &[HeartbeatDisplay; 5] = &server_state.displayed_heartbeats;
-
+    // get latest heartbeat table / note to display
+    let heartbeats: MutexGuard<'_, [HeartbeatDisplay; 5]> =
+        server_state.displayed_heartbeats.lock().await;
     let locked_note: MutexGuard<'_, Option<String>> = server_state.note.lock().await;
 
     let html = IndexTemplate {

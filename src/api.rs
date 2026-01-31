@@ -19,7 +19,8 @@
 
 use crate::redundancy::Redundant;
 use crate::{
-    INITIAL_RATE_LIMIT_PERIOD, LifeState, RATE_LIMIT_PERIOD_FACTOR, RateLimit, ServerState,
+    HeartbeatDisplay, INITIAL_RATE_LIMIT_PERIOD, LifeState, MAX_DISPLAYED_HEARTBEATS,
+    RATE_LIMIT_PERIOD_FACTOR, RateLimit, ServerState,
 };
 use argon2::{Argon2, PasswordVerifier};
 use axum::body::Body;
@@ -27,6 +28,7 @@ use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
 use axum::extract::{ConnectInfo, Json, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
+use chrono::{FixedOffset, TimeZone};
 use serde::{Deserialize, Serialize};
 use serde_json::{self, Error};
 use std::collections::HashMap;
@@ -164,8 +166,9 @@ pub async fn heartbeat_api(
         }
     }
     // OK, let's authenticate the heartbeat
-    if let Err(_) =
-        Argon2::default().verify_password(req.password.as_bytes(), &server_state.password_hash)
+    if Argon2::default()
+        .verify_password(req.password.as_bytes(), &server_state.password_hash)
+        .is_err()
     {
         // auth failed, let's give them (or extend) a rate limit
         let wait_period: u64 = match previous_rate_limit_period {
@@ -207,8 +210,31 @@ pub async fn heartbeat_api(
     *locked_heartbeat = Redundant::new(now);
     drop(locked_heartbeat);
 
-    // finally, make sure our state is up-to-date
+    // create a formatted date string for this heartbeat's Unix timestamp
+    let timezone: FixedOffset =
+        FixedOffset::east_opt(server_state.config.global.utc_offset * 60 * 60).unwrap();
+    let now_i64: i64 = now.try_into().unwrap(); // who knows how many years out we are from this failing
+    let ts: String = timezone.timestamp_opt(now_i64, 0).unwrap().to_rfc2822();
+
+    // update the displayed heartbeats
+    let mut locked_display: MutexGuard<'_, [HeartbeatDisplay; 5]> =
+        server_state.displayed_heartbeats.lock().await;
+
+    // shift top 4 entries 'down' (+1 by index)
+    for i in (0..=(MAX_DISPLAYED_HEARTBEATS - 2)).rev() {
+        locked_display[i + 1] = locked_display[i].clone();
+    }
+    // set top entry to new heartbeat
+    locked_display[0] = HeartbeatDisplay {
+        timestamp: ts,
+        message: req.message,
+    };
+    drop(locked_display);
+
+    // finally, make sure our state is up-to-date & any baked API responses are re-baked
     server_state.update(now).await;
+
+    // TODO: write new heartbeat to database file
 
     Response::builder()
         .status(StatusCode::OK)

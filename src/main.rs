@@ -59,7 +59,7 @@ struct ServerState {
     /// The parsed Argon2id password hash from our configuration file.
     /// Used to authenticate new heartbeat requests.
     password_hash: PasswordHash<'static>,
-    displayed_heartbeats: [HeartbeatDisplay; MAX_DISPLAYED_HEARTBEATS],
+    displayed_heartbeats: Arc<Mutex<[HeartbeatDisplay; MAX_DISPLAYED_HEARTBEATS]>>,
     note: Arc<Mutex<Option<String>>>,
     /// Instead of borrowing locks for the server state on every
     /// API call, just bake a response every time the state is updated.
@@ -84,7 +84,7 @@ impl ServerState {
     /// Refreshes the shared application state based on current Unix timestamp.
     ///
     async fn update(&self, now_unix_timestamp: u64) {
-        let last_seen: u64 = *self.last_heartbeat.lock().await.clone();
+        let last_seen: u64 = **self.last_heartbeat.lock().await;
         // just a sanity check to make sure this isnt possible past this point
         assert!(
             last_seen < now_unix_timestamp,
@@ -265,7 +265,7 @@ async fn main() {
         config: daemon_config.clone(),
         rng: Arc::new(Mutex::new(OsRng::default())),
         password_hash: PasswordHash::new(pwd_hash_str).expect("Invalid Argon2id hash."),
-        displayed_heartbeats: initial_state.heartbeat_display,
+        displayed_heartbeats: Arc::new(Mutex::new(initial_state.heartbeat_display)),
         note: Arc::new(Mutex::new(initial_state.note)),
         baked_status_api_resp: Arc::new(Mutex::new(String::default())),
         rate_limited_ips: Arc::new(Mutex::new(HashMap::default())),
@@ -279,7 +279,7 @@ async fn main() {
         let state: ServerState = server_state.clone();
 
         async move {
-            let ival: u64 = state.config.state.tick_interval.clone().into();
+            let ival: u64 = state.config.state.tick_interval.into();
             let mut interval: Interval = time::interval(Duration::from_secs(ival * 60));
 
             loop {

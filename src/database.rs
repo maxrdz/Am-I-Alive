@@ -69,7 +69,7 @@ pub fn get_initial_state_from_disk(path: &str, config: Arc<ServerConfig>) -> Ini
     for (i, line) in db_contents.lines().enumerate() {
         match i {
             0 => {
-                if line == "" {
+                if line.is_empty() {
                     panic!("Invalid db entry on line {}", i + 1);
                 }
                 state = LifeState::from(line);
@@ -80,7 +80,7 @@ pub fn get_initial_state_from_disk(path: &str, config: Arc<ServerConfig>) -> Ini
                     .expect(&format!("Invalid timestamp in db file; line {}.", i + 1));
             }
             2 => {
-                if line != "" {
+                if !line.is_empty() {
                     note = Some(line.to_owned());
                 }
             }
