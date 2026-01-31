@@ -32,7 +32,7 @@ use chrono::{FixedOffset, TimeZone};
 use serde::{Deserialize, Serialize};
 use serde_json::{self, Error};
 use std::collections::HashMap;
-use std::net::SocketAddr;
+use std::net::{IpAddr, SocketAddr};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::MutexGuard;
 
@@ -90,6 +90,10 @@ pub async fn bake_status_api_response(server_state: ServerState) -> String {
     resp.status = locked_state.to_string();
     drop(locked_state);
 
+    let locked_heartbeat: MutexGuard<'_, Redundant<u64>> = server_state.last_heartbeat.lock().await;
+    resp.last_heartbeat = **locked_heartbeat;
+    drop(locked_heartbeat);
+
     let locked_note: MutexGuard<'_, Option<String>> = server_state.note.lock().await;
 
     resp.active_note = match locked_note.as_ref() {
@@ -142,19 +146,20 @@ pub async fn heartbeat_api(
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     Json(req): Json<HeartbeatRequest>,
 ) -> impl IntoResponse {
+    let ip: IpAddr = addr.ip();
     let now: u64 = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()
         .as_secs();
 
-    let mut locked_map: MutexGuard<'_, HashMap<SocketAddr, RateLimit>> =
+    let mut locked_map: MutexGuard<'_, HashMap<IpAddr, RateLimit>> =
         server_state.rate_limited_ips.lock().await;
     let mut previous_rate_limit_period: Option<u64> = None;
 
     // check if this address is currently rate limited..
-    if let Some(rate_limit) = locked_map.get(&addr) {
+    if let Some(rate_limit) = locked_map.get(&ip) {
         // store current rate limit wait period in case we need to extend it
-        previous_rate_limit_period = Some(rate_limit.timestamp);
+        previous_rate_limit_period = Some(rate_limit.period);
 
         if now < rate_limit.timestamp {
             // return here to enforce rate limit, and send seconds left until retry available
@@ -176,7 +181,7 @@ pub async fn heartbeat_api(
             None => INITIAL_RATE_LIMIT_PERIOD,
         };
         locked_map.insert(
-            addr,
+            ip,
             RateLimit {
                 period: wait_period,
                 timestamp: now + wait_period,
@@ -190,7 +195,7 @@ pub async fn heartbeat_api(
             .unwrap();
     }
     if previous_rate_limit_period.is_some() {
-        locked_map.remove(&addr);
+        locked_map.remove(&ip);
     }
     drop(locked_map);
 

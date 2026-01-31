@@ -30,12 +30,12 @@ use axum::{
 };
 use rand::rand_core::OsRng;
 use redundancy::Redundant;
-use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
+use std::{collections::HashMap, net::IpAddr};
 use tokio::net::TcpListener;
 use tokio::sync::{Mutex, MutexGuard};
 use tokio::time::{self, Duration, Interval};
@@ -67,8 +67,10 @@ struct ServerState {
     /// This way, every API call is simply a [`String`] clone.
     baked_status_api_resp: Arc<Mutex<String>>,
     /// Store rate limiting expiration timestamps per IPv4/IPv6 address.
-    rate_limited_ips: Arc<Mutex<HashMap<SocketAddr, RateLimit>>>,
+    rate_limited_ips: Arc<Mutex<HashMap<IpAddr, RateLimit>>>,
 }
+
+//
 
 struct RateLimit {
     /// the amount of time (seconds) this rate limit lasts for
@@ -87,23 +89,25 @@ impl ServerState {
         let last_seen: u64 = **self.last_heartbeat.lock().await;
         // just a sanity check to make sure this isnt possible past this point
         assert!(
-            last_seen < now_unix_timestamp,
+            last_seen <= now_unix_timestamp,
             "Last heartbeat recorded happened in the future!"
         );
 
         let seconds_since_last_seen: u64 = now_unix_timestamp - last_seen;
 
+        // config variable is in hours, so translate to seconds by * 60 * 60.
+        let seconds_until_uncertain: u64 =
+            u64::from(self.config.state.time_until_uncertain) * 60 * 60;
+
         let mut locked_state: MutexGuard<'_, Redundant<LifeState>> = self.state.lock().await;
-        let mut changed: bool = true;
+        let mut changed: bool = false;
 
         match **locked_state {
             LifeState::Alive => {
-                // config variable is in hours, so translate to seconds by * 60 * 60.
-                let seconds_until_uncertain: u64 =
-                    u64::from(self.config.state.time_until_uncertain) * 60 * 60;
-
                 if seconds_since_last_seen > seconds_until_uncertain {
                     *locked_state = Redundant::new(LifeState::ProbablyAlive);
+                    println!("Entered \"Probably Alive\" state.");
+                    changed = true;
                 }
             }
             LifeState::ProbablyAlive => {
@@ -112,11 +116,26 @@ impl ServerState {
 
                 if seconds_since_last_seen > seconds_until_missing {
                     *locked_state = Redundant::new(LifeState::MissingOrDead);
+                    println!("Assuming Missing or Dead.");
+                    changed = true;
+                }
+                // check if the latest heartbeat maybe restores our state back to "Alive"
+                if seconds_since_last_seen < seconds_until_uncertain {
+                    *locked_state = Redundant::new(LifeState::Alive);
+                    println!("Restored state to \"Alive\".");
+                    changed = true;
                 }
             }
             // other states can only be reached by manual interaction
             // (e.g. trusted user verifying the state of the person, or the person sending a new heartbeat)
-            _ => changed = false,
+            _ => {
+                // check if the latest heartbeat maybe restores our state back to "Alive"
+                if seconds_since_last_seen < seconds_until_uncertain {
+                    *locked_state = Redundant::new(LifeState::Alive);
+                    println!("Restored state to \"Alive\".");
+                    changed = true;
+                }
+            }
         }
         drop(locked_state);
 
