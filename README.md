@@ -55,7 +55,8 @@ heartbeat. (*Either you were found, woke up from a coma, or came back from the d
 # Is it secure?
 
 Yes. (Trust) I am a very paranoid person. First of all, the worst they can do is keep
-you alive. Though, that is close to impossible **if you chose a strong password**.
+you alive. (and.. update your note, i guess) Though, that is close to impossible
+**if you chose a strong password**.
 
 - Your password is stored on the server as an Argon2Id hash. Even if a bad actor
   manages to get access to your server, it would still be close to impossible for them
@@ -91,7 +92,22 @@ you alive. Though, that is close to impossible **if you chose a strong password*
   ownership model and type system, which enforce valid states at compile time and make
   many invalid states unrepresentable.
 
-### **Please note that the best measure of defense is choosing a strong password!**
+## End-User (Sysadmin) Expectations
+
+- Use a **strong password**.
+- Generate your PoW secret using `openssl rand -hex 32`, or any other
+  **cryptographically secure source**.
+- Expose the application with your front-end HTTP server (can be the NGINX instance
+  deployed by "Am I Alive?", or your own HTTP reverse proxy) configured with **a valid
+  SSL certificate for encryption** when sending sensitive credentials.
+
+  **If your copy of "Am I Alive?" is running behind an HTTP reverse proxy:**
+
+- The reverse proxy must securely encrypt HTTP requests using a valid SSL certificate.
+- Security within your server's internal network to prevent attackers from setting
+  up their own reverse proxy to communicate directly with the "Am I Alive?" application
+  and spoof their requests' source IP (aka 'real IP') to bypass rate limiting by IP
+  address. Rate limiting by Proof of Work will still be enforced here.
 
 # Legal
 
