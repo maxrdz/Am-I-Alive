@@ -64,10 +64,8 @@ pub async fn index(State(server_state): State<ServerState>) -> impl IntoResponse
     server_state.update(now).await;
 
     // first get a random number from the OS rng
-    let mut rng: MutexGuard<'_, OsRng> = server_state.rng.lock().await;
-    let img_randint: u64 = rng.try_next_u64().expect("OS RNG error.");
-    let msg_randint: u64 = rng.try_next_u64().expect("OS RNG error.");
-    drop(rng);
+    let img_randint: u64 = OsRng.try_next_u64().expect("OS RNG error.");
+    let msg_randint: u64 = OsRng.try_next_u64().expect("OS RNG error.");
 
     let locked_state: MutexGuard<'_, Redundant<LifeState>> = server_state.state.lock().await;
 

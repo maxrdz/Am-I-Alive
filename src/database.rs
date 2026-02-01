@@ -77,7 +77,7 @@ pub fn get_initial_state_from_disk(path: &str, config: Arc<ServerConfig>) -> Ini
             1 => {
                 last_heartbeat = line
                     .parse::<u64>()
-                    .expect(&format!("Invalid timestamp in db file; line {}.", i + 1));
+                    .unwrap_or_else(|_| panic!("Invalid timestamp in db file; line {}.", i + 1));
             }
             2 => {
                 if !line.is_empty() {
@@ -116,7 +116,7 @@ pub fn get_initial_state_from_disk(path: &str, config: Arc<ServerConfig>) -> Ini
         let unix_timestamp: i64 = data
             .0
             .parse::<i64>()
-            .expect(&format!("Invalid unix timestamp on line {}", line_number));
+            .unwrap_or_else(|_| panic!("Invalid unix timestamp on line {}", line_number));
 
         let timezone: FixedOffset =
             FixedOffset::east_opt(config.global.utc_offset * 60 * 60).unwrap();

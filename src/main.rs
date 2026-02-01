@@ -29,7 +29,6 @@ use axum::{
     Router,
     routing::{get, post},
 };
-use rand::rand_core::OsRng;
 use redundancy::Redundant;
 use std::fs::File;
 use std::io::Read;
@@ -56,7 +55,6 @@ struct ServerState {
     last_heartbeat: Arc<Mutex<Redundant<u64>>>,
     server_start_time: Redundant<u64>,
     config: Arc<config::ServerConfig>,
-    rng: Arc<Mutex<OsRng>>,
     /// The parsed Argon2id password hash from our configuration file.
     /// Used to authenticate new heartbeat requests.
     password_hash: PasswordHash<'static>,
@@ -293,7 +291,6 @@ async fn main() {
         last_heartbeat: Arc::new(Mutex::new(Redundant::new(initial_state.last_heartbeat))),
         server_start_time: Redundant::new(boot_time),
         config: daemon_config.clone(),
-        rng: Arc::new(Mutex::new(OsRng::default())),
         password_hash: PasswordHash::new(pwd_hash_str).expect("Invalid Argon2id hash."),
         displayed_heartbeats: Arc::new(Mutex::new(initial_state.heartbeat_display)),
         note: Arc::new(Mutex::new(initial_state.note)),
