@@ -24,7 +24,6 @@ use crate::{
 };
 use argon2::{Argon2, PasswordVerifier};
 use axum::body::Body;
-use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
 use axum::extract::{ConnectInfo, Json, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
@@ -68,14 +67,7 @@ pub struct HeartbeatRequest {
 pub struct PowSolution {
     nonce: u64,
     hash: String,
-    timestamp_ms: u64,
-}
-
-#[derive(Deserialize)]
-pub struct PowChallenge {
-    seed: String,
-    difficulty: String,
-    timestamp_ms: u64,
+    timestamp_ms: u128,
 }
 
 /// Using our shared state, [`ServerState`], build a [`StatusApiResponse`]
@@ -141,6 +133,7 @@ pub async fn status_api(State(server_state): State<ServerState>) -> impl IntoRes
 }
 
 /// Handles requests on `/api/heartbeat` for registering new heartbeats.
+#[axum::debug_handler]
 pub async fn heartbeat_api(
     State(server_state): State<ServerState>,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
@@ -248,16 +241,3 @@ pub async fn heartbeat_api(
         .body(Body::default())
         .unwrap()
 }
-
-/// WebSocket handler for `/api/pow`, which serves PoW challenges at an interval.
-async fn ws_handler(
-    ws: WebSocketUpgrade,
-    ConnectInfo(addr): ConnectInfo<SocketAddr>,
-) -> impl IntoResponse {
-    println!("`{addr} connected to PoW challenge WebSocket endpoint.");
-    // finalize the upgrade process by returning upgrade callback.
-    // we can customize the callback by sending additional info such as address.
-    ws.on_upgrade(move |socket| handle_websocket(socket, addr))
-}
-
-async fn handle_websocket(mut socket: WebSocket, address: SocketAddr) {}

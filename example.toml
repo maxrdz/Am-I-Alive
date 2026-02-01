@@ -11,7 +11,7 @@ heartbeat_auth_hash = "<ARGON2ID HASH>"
 secret = "<256-BIT SECRET>"
 # PoW difficulty. Already set to the recommended default.
 # See: https://blog.trishtzy.com/2025/08/15/rate-limit-by-pow.html
-difficulty = 5
+difficulty = 4
 
 [state]
 tick_interval = 60 # in minutes

@@ -20,6 +20,7 @@
 mod api;
 mod config;
 mod database;
+mod pow;
 mod redundancy;
 mod templating;
 
@@ -37,7 +38,7 @@ use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::{collections::HashMap, net::IpAddr};
 use tokio::net::TcpListener;
-use tokio::sync::{Mutex, MutexGuard};
+use tokio::sync::{Mutex, MutexGuard, broadcast};
 use tokio::time::{self, Duration, Interval};
 
 const BIND_ADDRESS: &str = "0.0.0.0:3000";
@@ -68,9 +69,9 @@ struct ServerState {
     baked_status_api_resp: Arc<Mutex<String>>,
     /// Store rate limiting expiration timestamps per IPv4/IPv6 address.
     rate_limited_ips: Arc<Mutex<HashMap<IpAddr, RateLimit>>>,
+    /// State used by the PoW challenge generator Tokio task.
+    pow_state: pow::PoWState,
 }
-
-//
 
 struct RateLimit {
     /// the amount of time (seconds) this rate limit lasts for
@@ -276,6 +277,15 @@ async fn main() {
     // struct in our app shared state for quick password verification.
     let pwd_hash_str: &mut str = daemon_config.global.heartbeat_auth_hash.clone().leak();
 
+    // broadcast channel for PoW challenges
+    let (tx, _) = broadcast::channel::<String>(100);
+
+    let pow_state: pow::PoWState = pow::PoWState {
+        secret: daemon_config.pow.secret.clone().leak(), // leak string so it has static lifetime (read-only)
+        difficulty: pow::DIFFICULTIES[daemon_config.pow.difficulty as usize - 1],
+        tx: Arc::new(tx),
+    };
+
     // build our state struct
     let server_state: ServerState = ServerState {
         state: Arc::new(Mutex::new(Redundant::new(initial_state.state))),
@@ -288,6 +298,7 @@ async fn main() {
         note: Arc::new(Mutex::new(initial_state.note)),
         baked_status_api_resp: Arc::new(Mutex::new(String::default())),
         rate_limited_ips: Arc::new(Mutex::new(HashMap::default())),
+        pow_state,
     };
 
     // start a tokio job that updates our state every tick interval.
@@ -314,12 +325,21 @@ async fn main() {
         }
     });
 
+    // start another tokio job that handles broadcasting PoW challenges
+    tokio::spawn({
+        let state: pow::PoWState = server_state.pow_state.clone();
+        async move {
+            pow::generate_pow_challenges(state).await;
+        }
+    });
+
     // start the web server (with initial state)
     let app: Router = Router::new()
         .route("/", get(templating::index))
         .route("/heartbeat", get(templating::heartbeat))
         .route("/api/status", get(api::status_api))
         .route("/api/heartbeat", post(api::heartbeat_api))
+        .route("/api/pow", get(pow::ws_handler))
         .with_state(server_state);
 
     let listener: TcpListener = tokio::net::TcpListener::bind(BIND_ADDRESS).await.unwrap();
