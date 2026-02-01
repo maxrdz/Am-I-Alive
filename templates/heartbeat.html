@@ -9,8 +9,11 @@
     <link rel="manifest" href="./favicon/site.webmanifest">
     <title>Is {{ name }} Alive?</title>
     <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/hash-wasm@4/dist/index.umd.min.js"
+        onerror="this.onerror=null; this.src='https://unpkg.com/hash-wasm@4/dist/index.umd.min.js';">
+    </script>
+    <script src="send_heartbeat.js" defer></script>
 </head>
-<script src="send_heartbeat.js" defer></script>
 <body>
     <div class="main">
         <div class="container vertical">
@@ -44,7 +47,7 @@
                     <input type="submit" value="Send Heartbeat" style="width: fit-content;">
                 </form>
                 <div class="container note auth-feedback" id="hidden">
-                    <p id="auth-feedback-text"></p>
+                    <p id="auth-feedback-text" style="font-weight: bolder;"></p>
                 </div>
             </div>
             <div style="margin-top: 40px;">

@@ -17,6 +17,7 @@
     License along with "Am I Alive". If not, see <https://www.gnu.org/licenses/>.
 */
 
+use crate::pow::verify_pow_solution;
 use crate::redundancy::Redundant;
 use crate::{
     HeartbeatDisplay, INITIAL_RATE_LIMIT_PERIOD, LifeState, MAX_DISPLAYED_HEARTBEATS,
@@ -65,9 +66,9 @@ pub struct HeartbeatRequest {
 
 #[derive(Deserialize)]
 pub struct PowSolution {
-    nonce: u64,
-    hash: String,
-    timestamp_ms: u128,
+    pub nonce: u64,
+    pub hash: String,
+    pub timestamp_ms: u128,
 }
 
 /// Using our shared state, [`ServerState`], build a [`StatusApiResponse`]
@@ -133,7 +134,6 @@ pub async fn status_api(State(server_state): State<ServerState>) -> impl IntoRes
 }
 
 /// Handles requests on `/api/heartbeat` for registering new heartbeats.
-#[axum::debug_handler]
 pub async fn heartbeat_api(
     State(server_state): State<ServerState>,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
@@ -163,6 +163,15 @@ pub async fn heartbeat_api(
                 .unwrap();
         }
     }
+    // now verify the PoW challenge. secondary rate limiting
+    if !verify_pow_solution(server_state.pow_state.clone(), ip, req.pow) {
+        // invalid proof of work; allow the client to retry
+        return Response::builder()
+            .status(StatusCode::NOT_ACCEPTABLE)
+            .body(Body::default())
+            .unwrap();
+    }
+
     // OK, let's authenticate the heartbeat
     if Argon2::default()
         .verify_password(req.password.as_bytes(), &server_state.password_hash)
@@ -182,7 +191,7 @@ pub async fn heartbeat_api(
         );
 
         return Response::builder()
-            .status(StatusCode::FORBIDDEN)
+            .status(StatusCode::UNAUTHORIZED)
             .header("Retry-After", wait_period)
             .body(Body::default())
             .unwrap();
@@ -192,15 +201,13 @@ pub async fn heartbeat_api(
     }
     drop(locked_map);
 
-    // past this point, we're successfully authenticated + past rate limit check
+    // past this point, we're successfully authenticated + past rate limit checks
     let mut locked_note: MutexGuard<'_, Option<String>> = server_state.note.lock().await;
 
     if req.remove_current_note {
         let _: Option<String> = locked_note.take();
-    } else {
-        if !req.updated_note.is_empty() {
-            let _: Option<String> = locked_note.replace(req.updated_note);
-        }
+    } else if !req.updated_note.is_empty() {
+        let _: Option<String> = locked_note.replace(req.updated_note);
     }
     drop(locked_note);
 
@@ -227,7 +234,10 @@ pub async fn heartbeat_api(
     // set top entry to new heartbeat
     locked_display[0] = HeartbeatDisplay {
         timestamp: ts,
-        message: req.message,
+        message: match req.message.is_empty() {
+            true => "N/A".into(),
+            false => req.message,
+        },
     };
     drop(locked_display);
 

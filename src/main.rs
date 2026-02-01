@@ -282,7 +282,8 @@ async fn main() {
 
     let pow_state: pow::PoWState = pow::PoWState {
         secret: daemon_config.pow.secret.clone().leak(), // leak string so it has static lifetime (read-only)
-        difficulty: pow::DIFFICULTIES[daemon_config.pow.difficulty as usize - 1],
+        difficulty: pow::DIFFICULTIES[daemon_config.pow.difficulty as usize - 1].0,
+        difficulty_index: daemon_config.pow.difficulty as usize - 1,
         tx: Arc::new(tx),
     };
 

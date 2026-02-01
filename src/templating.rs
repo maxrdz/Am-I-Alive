@@ -30,8 +30,8 @@ use tokio::sync::MutexGuard;
 
 // any specific IDs that we assign to HTML elements
 // dynamically depending on our state
-const HIDE_CSS_ID: &'static str = "hidden";
-const DEAD_CSS_ID: &'static str = "dead";
+const HIDE_CSS_ID: &str = "hidden";
+const DEAD_CSS_ID: &str = "dead";
 
 #[derive(Template)]
 #[template(path = "index.html")]
