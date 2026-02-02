@@ -17,6 +17,7 @@
     License along with "Am I Alive". If not, see <https://www.gnu.org/licenses/>.
 */
 
+use crate::database::{Database, HeartbeatLog, load_database};
 use crate::pow::verify_pow_solution;
 use crate::redundancy::Redundant;
 use crate::{
@@ -215,6 +216,8 @@ pub async fn heartbeat_api(
     } else if !req.updated_note.is_empty() {
         let _: Option<String> = locked_note.replace(req.updated_note);
     }
+    // keep a copy for the write to disk we will do
+    let note_db_copy: String = locked_note.clone().unwrap_or_default();
     drop(locked_note);
 
     // update the last heartbeat
@@ -242,15 +245,45 @@ pub async fn heartbeat_api(
         timestamp: ts,
         message: match req.message.is_empty() {
             true => "N/A".into(),
-            false => req.message,
+            false => req.message.clone(),
         },
     };
     drop(locked_display);
 
-    // finally, make sure our state is up-to-date & any baked API responses are re-baked
+    // make sure our state is up-to-date & any baked API responses are re-baked
     server_state.update(now).await;
 
-    // TODO: write new heartbeat to database file
+    // finally, let's sync our results to the database file on disk
+    let mut db: Database = match load_database(crate::DB_PATH) {
+        Err(err) => {
+            eprintln!("An error ocurred while trying to read from disk: {}", err);
+
+            return Response::builder()
+                .status(StatusCode::INTERNAL_SERVER_ERROR)
+                .body(Body::from("There was an issue reading from the database."))
+                .unwrap();
+        }
+        Ok(db) => db,
+    };
+
+    db.last_heartbeat = now;
+    db.note = note_db_copy;
+    db.heartbeat_history.push(HeartbeatLog {
+        timestamp: now,
+        message: req.message,
+    });
+
+    if let Err(err) = db.write_to_disk().await {
+        eprintln!(
+            "An error ocurred while trying to sync state to disk: {}",
+            err
+        );
+
+        return Response::builder()
+            .status(StatusCode::INTERNAL_SERVER_ERROR)
+            .body(Body::from("There was an issue writing to the database."))
+            .unwrap();
+    }
 
     Response::builder()
         .status(StatusCode::OK)
