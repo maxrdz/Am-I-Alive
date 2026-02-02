@@ -10,6 +10,52 @@ confirmed by the program.
 
 ### **Check out a live example on my personal website: [status.maxrdz.com](https://status.maxrdz.com)!**
 
+# Building from Source
+
+In this Git local repository directory, run:
+```sh
+$ docker build -t amialived .
+```
+
+# Getting Started
+
+1. Create the DB file and configuration file.
+
+    ```sh
+    $ cp example-db.txt db.txt
+    $ cp example.toml config.toml
+    ```
+
+2. Configure the application to your needs. The following values are basic/essential
+    to configure before running your copy of "Am I Alive?" for the first time:
+
+    - `name`: Your first name, or nickname.
+
+    - `full_name`: Your first and last name. What you go by formally. This name is
+      used whenever the application believes you may not be alive.
+
+    - `heartbeat_auth_hash`: The Argon2id hash of your password to authenticate.
+      Generate your hash for your password using https://argon2.online/. (**NOTE:**
+      Keep the default hash parameters.)
+
+    - `secret`: The 256-bit cryptographically secure random string, used to create
+      PoW (Proof of Work) challenges that are unpredictable. Generate your secret
+      with OpenSSL by using the following command:
+
+      ```sh
+      $ openssl rand -hex 32
+      ```
+
+    Feel free to tweak the other configuration values, such as the UTC time offset
+    (timezone) used when displaying heartbeat timestamps, the pictures you would
+    like to be shown depending on what state the application is in, etc.
+
+3. Finally, run the daemon + the front-facing NGINX instance using Docker compose:
+
+    ```sh
+    $ docker-compose up
+    ```
+
 # How does it work?
 
 *How does it know you died?* Well, it's called a dead man's switch for a reason: It
