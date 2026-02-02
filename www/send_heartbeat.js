@@ -232,9 +232,12 @@ document.getElementById("send-heartbeat-form").addEventListener("submit", async 
                 let rate_limit_period = response.headers.get("Retry-After");
                 feedback_container.style.backgroundColor = "#7a3f01";
                 feedback_text.textContent = `Rate limited. Try again in ${formatDuration(rate_limit_period)}.`;
+            } else if (response.status === 406) {
+                feedback_container.style.backgroundColor = "#7a3f01";
+                feedback_text.textContent = `PoW challenge rejected. Please try again.`;
             } else if (response.ok) {
                 feedback_container.style.backgroundColor = "#067c02";
-                feedback_text.textContent = "Heartbeat Authenticated!";
+                feedback_text.textContent = "Heartbeat Authenticated! Redirecting...";
                 setTimeout(() => {
                     window.location.href = "/";
                 }, 1000);
@@ -254,17 +257,23 @@ document.getElementById("send-heartbeat-form").addEventListener("submit", async 
     };
 
     ws.onerror = function (error) {
+        pow.busy = false;
+        pow.isRunning = false;
+
         document.getElementsByClassName("auth-feedback")[0].id = "";
         let feedback_container = document.getElementsByClassName("auth-feedback")[0];
         let feedback_text = document.getElementById("auth-feedback-text");
 
         feedback_container.style.backgroundColor = "#870000";
-        feedback_text.textContent = "Connection closed.";
+        feedback_text.textContent = "WebSocket connection closed.";
 
         console.error("WebSocket error:", error);
     };
 
     ws.onclose = function () {
+        pow.busy = false;
+        pow.isRunning = false;
+
         console.log("WebSocket connection closed.");
     };
 });
@@ -280,5 +289,10 @@ function formatDuration(seconds) {
     }
 
     const hours = Math.floor(minutes / 60);
-    return `${hours} hour${hours === 1 ? "" : "s"}`;
+    if (hours < 24) {
+        return `${hours} hour${hours === 1 ? "" : "s"}`;
+    }
+
+    const days = Math.floor(hours / 24);
+    return `${days} hour${days === 1 ? "" : "s"}`;
 }
