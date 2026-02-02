@@ -102,7 +102,7 @@ h2 {
 }
 
 #dead {
-    filter: grayscale(1);
+    filter: contrast(0);
     animation: none;
 }
 
