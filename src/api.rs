@@ -25,14 +25,16 @@ use crate::{
 };
 use argon2::{Argon2, PasswordVerifier};
 use axum::body::Body;
-use axum::extract::{ConnectInfo, Json, State};
-use axum::http::StatusCode;
+use axum::extract::{Json, State};
+use axum::http::HeaderMap;
+use axum::http::{HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
 use chrono::{FixedOffset, TimeZone};
 use serde::{Deserialize, Serialize};
 use serde_json::{self, Error};
 use std::collections::HashMap;
-use std::net::{IpAddr, SocketAddr};
+use std::net::IpAddr;
+use std::str::FromStr;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::MutexGuard;
 
@@ -135,11 +137,15 @@ pub async fn status_api(State(server_state): State<ServerState>) -> impl IntoRes
 
 /// Handles requests on `/api/heartbeat` for registering new heartbeats.
 pub async fn heartbeat_api(
+    headers: HeaderMap,
     State(server_state): State<ServerState>,
-    ConnectInfo(addr): ConnectInfo<SocketAddr>,
     Json(req): Json<HeartbeatRequest>,
 ) -> impl IntoResponse {
-    let ip: IpAddr = addr.ip();
+    let real_ip: &HeaderValue = headers
+        .get("X-Real-IP")
+        .expect("Missing X-Real-IP header. Fix in NGINX conf.");
+    let ip: IpAddr = IpAddr::from_str(str::from_utf8(real_ip.as_bytes()).unwrap()).unwrap();
+
     let now: u64 = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()
