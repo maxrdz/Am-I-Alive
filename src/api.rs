@@ -270,6 +270,7 @@ pub async fn heartbeat_api(
     db.note = note_db_copy;
     db.heartbeat_history.push(HeartbeatLog {
         timestamp: now,
+        from_address: ip.to_string(),
         message: req.message,
     });
 

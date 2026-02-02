@@ -80,6 +80,8 @@ impl Display for Database {
 #[derive(Debug, Default)]
 pub struct HeartbeatLog {
     pub timestamp: u64,
+    /// e.g. "16.13.35.105" (IPv4), "2700:3600:a3bf::3" (IPv6)
+    pub from_address: String,
     pub message: String,
 }
 
@@ -93,6 +95,8 @@ impl Hash for HeartbeatLog {
 impl Display for HeartbeatLog {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.write_str(&self.timestamp.to_string())?;
+        f.write_char(' ')?;
+        f.write_str(&self.from_address)?;
         f.write_char(' ')?;
         f.write_str(&self.message)?;
         f.write_char('\n')
@@ -139,16 +143,29 @@ pub fn load_database(path: &str) -> Result<Database, std::io::Error> {
                 };
                 let data: (&str, &str) = line.split_at(split_index);
 
+                let mut second_half: String = data.1.to_owned();
+                let _: char = second_half.remove(0);
+
+                let second_split_index: usize = match second_half.find(" ") {
+                    Some(index) => index,
+                    None => panic!("Corrupted database entry on line {}", line_number),
+                };
+                let address_and_msg: (&str, &str) = second_half.split_at(second_split_index);
+
                 let timestamp: u64 = data
                     .0
                     .parse::<u64>()
                     .unwrap_or_else(|_| panic!("Invalid unix timestamp on line {}", line_number));
 
-                let mut message: String = data.1.to_owned();
+                let from_address: String = address_and_msg.0.to_owned();
+                let mut message: String = address_and_msg.1.to_owned();
                 let _: char = message.remove(0);
 
-                db.heartbeat_history
-                    .push(HeartbeatLog { timestamp, message });
+                db.heartbeat_history.push(HeartbeatLog {
+                    timestamp,
+                    from_address,
+                    message,
+                });
             }
         }
     }
@@ -161,8 +178,8 @@ pub fn load_database(path: &str) -> Result<Database, std::io::Error> {
 pub fn get_initial_state_from_disk(path: &str, config: Arc<ServerConfig>) -> InitialState {
     let db_contents: String = match read_db_file(path) {
         Err(err) => {
-            println!("Could not load database file.");
-            println!("Cannot start without a database file present.");
+            eprintln!("Could not load database file.");
+            eprintln!("Cannot start without a database file present.");
             panic!("{}", err)
         }
         Ok(db) => db,
@@ -220,6 +237,15 @@ pub fn get_initial_state_from_disk(path: &str, config: Arc<ServerConfig>) -> Ini
         };
         let data: (&str, &str) = line.split_at(split_index);
 
+        let mut second_half: String = data.1.to_owned();
+        let _: char = second_half.remove(0);
+
+        let second_split_index: usize = match second_half.find(" ") {
+            Some(index) => index,
+            None => panic!("Corrupted database entry on line {}", line_number),
+        };
+        let address_and_msg: (_, &str) = second_half.split_at(second_split_index);
+
         let unix_timestamp: i64 = data
             .0
             .parse::<i64>()
@@ -235,7 +261,7 @@ pub fn get_initial_state_from_disk(path: &str, config: Arc<ServerConfig>) -> Ini
 
         heartbeat_display[i].timestamp = ts;
 
-        let mut message: String = data.1.to_owned();
+        let mut message: String = address_and_msg.1.to_owned();
         let _: char = message.remove(0);
 
         if !message.is_empty() {

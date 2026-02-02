@@ -41,8 +41,8 @@ use tokio::sync::{Mutex, MutexGuard, broadcast};
 use tokio::time::{self, Duration, Interval};
 
 const BIND_ADDRESS: &str = "0.0.0.0:3000";
-const CONFIG_PATH: &str = "/app/config.toml";
-const DB_PATH: &str = "/app/db.txt";
+const CONFIG_PATH: &str = "./config.toml";
+const DB_PATH: &str = "./db.txt";
 const MAX_DISPLAYED_HEARTBEATS: usize = 5;
 const INITIAL_RATE_LIMIT_PERIOD: u64 = 5 * 60;
 const RATE_LIMIT_PERIOD_FACTOR: u64 = 2;
