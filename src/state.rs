@@ -21,11 +21,45 @@ use crate::MAX_DISPLAYED_HEARTBEATS;
 use crate::api::bake_status_api_response;
 use crate::config::ServerConfig;
 use crate::pow::PoWState;
-use crate::redundancy::Redundant;
 use argon2::password_hash::PasswordHash;
+use std::ops::Deref;
 use std::sync::Arc;
 use std::{collections::HashMap, net::IpAddr};
 use tokio::sync::{Mutex, MutexGuard};
+
+/// Store multiple copies of a value in memory in case they
+/// are somehow corrupted by a cosmic ray or something.
+///
+/// I think some memory chips have this kind of protection, but,
+/// in case you don't- I don't want people to think you're dead
+/// when you're not haha.
+///
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Redundant<T: Eq + Copy> {
+    a: T,
+    b: T,
+    c: T,
+}
+
+impl<T: Eq + Copy> Redundant<T> {
+    pub fn new(v: T) -> Self {
+        Self { a: v, b: v, c: v }
+    }
+}
+
+impl<T: Eq + Copy> Deref for Redundant<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        if (self.a == self.b) && (self.b == self.c) {
+            &self.a
+        } else {
+            // the state of this struct at this point is not possible,
+            // which means there was some memory corruption somehow
+            panic!("Memory corruption detected. Hoping your docker container restarts itself.")
+        }
+    }
+}
 
 #[derive(Clone)]
 pub struct ServerState {

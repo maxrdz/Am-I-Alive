@@ -17,8 +17,7 @@
     License along with "Am I Alive". If not, see <https://www.gnu.org/licenses/>.
 */
 
-use crate::redundancy::Redundant;
-use crate::state::{AssociatedColor, HeartbeatDisplay, LifeState, ServerState};
+use crate::state::{AssociatedColor, HeartbeatDisplay, LifeState, Redundant, ServerState};
 use askama::Template;
 use axum::{
     extract::State,

@@ -19,8 +19,7 @@
 
 use crate::database::{Database, HeartbeatLog, load_database};
 use crate::pow::verify_pow_solution;
-use crate::redundancy::Redundant;
-use crate::state::{HeartbeatDisplay, LifeState, RateLimit, ServerState};
+use crate::state::{HeartbeatDisplay, LifeState, RateLimit, Redundant, ServerState};
 use crate::{INITIAL_RATE_LIMIT_PERIOD, MAX_DISPLAYED_HEARTBEATS, RATE_LIMIT_PERIOD_FACTOR};
 use argon2::{Argon2, PasswordVerifier};
 use axum::body::Body;

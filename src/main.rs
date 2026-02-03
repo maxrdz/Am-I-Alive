@@ -21,16 +21,15 @@ mod api;
 mod config;
 mod database;
 mod pow;
-mod redundancy;
 mod state;
 mod templating;
 
+use crate::state::{Redundant, ServerState};
 use argon2::password_hash::PasswordHash;
 use axum::{
     Router,
     routing::{get, post},
 };
-use redundancy::Redundant;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
@@ -113,7 +112,7 @@ async fn main() {
     };
 
     // build our state struct
-    let server_state: state::ServerState = state::ServerState {
+    let server_state: ServerState = ServerState {
         state: Arc::new(Mutex::new(Redundant::new(initial_state.state))),
         last_heartbeat: Arc::new(Mutex::new(Redundant::new(initial_state.last_heartbeat))),
         server_start_time: Redundant::new(boot_time),
@@ -131,7 +130,7 @@ async fn main() {
     // this is useful for the digital will to take effect even if
     // no one is sending HTTP requests to serving endpoints
     tokio::spawn({
-        let state: state::ServerState = server_state.clone();
+        let state: ServerState = server_state.clone();
 
         async move {
             let ival: u64 = state.config.state.tick_interval.into();
