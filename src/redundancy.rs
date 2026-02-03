@@ -22,7 +22,7 @@ use std::ops::Deref;
 /// Store multiple copies of a value in memory in case they
 /// are somehow corrupted by a cosmic ray or something.
 ///
-/// I'm pretty sure memory chips have this kind of protection, but,
+/// I think some memory chips have this kind of protection, but,
 /// in case you don't- I don't want people to think you're dead
 /// when you're not haha.
 ///

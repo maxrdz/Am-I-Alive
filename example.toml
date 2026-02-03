@@ -17,6 +17,9 @@ difficulty = 4
 tick_interval = 60 # in minutes
 time_until_uncertain = 24 # in hours
 time_until_missing = 72 # in hours
+# Minimum server up-time required to make an autonomous state change.
+# Safety net for sysadmins bringing back up the service after maintenance.
+minimum_uptime = 60 # in minutes
 
 [state.alive]
 images = [

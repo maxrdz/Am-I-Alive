@@ -88,6 +88,7 @@ pub struct HeartbeatLog {
 impl Hash for HeartbeatLog {
     fn hash<H: Hasher>(&self, state: &mut H) {
         state.write_u64(self.timestamp);
+        state.write(self.from_address.as_bytes());
         state.write(self.message.as_bytes());
     }
 }

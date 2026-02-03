@@ -99,14 +99,13 @@ impl ServerState {
             u64::from(self.config.state.time_until_uncertain) * 60 * 60;
 
         let mut locked_state: MutexGuard<'_, Redundant<LifeState>> = self.state.lock().await;
-        let mut changed: bool = false;
+        let mut new_state: Option<LifeState> = None;
 
         match **locked_state {
             LifeState::Alive => {
                 if seconds_since_last_seen > seconds_until_uncertain {
-                    *locked_state = Redundant::new(LifeState::ProbablyAlive);
-                    println!("Entered \"Probably Alive\" state.");
-                    changed = true;
+                    new_state = Some(LifeState::ProbablyAlive);
+                    println!("Entering \"Probably Alive\" state.");
                 }
             }
             LifeState::ProbablyAlive => {
@@ -114,15 +113,13 @@ impl ServerState {
                     u64::from(self.config.state.time_until_missing) * 60 * 60;
 
                 if seconds_since_last_seen > seconds_until_missing {
-                    *locked_state = Redundant::new(LifeState::MissingOrDead);
+                    new_state = Some(LifeState::MissingOrDead);
                     println!("Assuming Missing or Dead.");
-                    changed = true;
                 }
                 // check if the latest heartbeat maybe restores our state back to "Alive"
                 if seconds_since_last_seen < seconds_until_uncertain {
-                    *locked_state = Redundant::new(LifeState::Alive);
-                    println!("Restored state to \"Alive\".");
-                    changed = true;
+                    new_state = Some(LifeState::Alive);
+                    println!("Restoring state to \"Alive\".");
                 }
             }
             // other states can only be reached by manual interaction
@@ -130,15 +127,29 @@ impl ServerState {
             _ => {
                 // check if the latest heartbeat maybe restores our state back to "Alive"
                 if seconds_since_last_seen < seconds_until_uncertain {
-                    *locked_state = Redundant::new(LifeState::Alive);
-                    println!("Restored state to \"Alive\".");
-                    changed = true;
+                    new_state = Some(LifeState::Alive);
+                    println!("Restoring state to \"Alive\".");
                 }
             }
         }
-        drop(locked_state);
 
-        if changed {
+        if let Some(state) = new_state {
+            match state {
+                LifeState::MissingOrDead | LifeState::ProbablyAlive => {
+                    let uptime: u64 = now_unix_timestamp - *self.server_start_time;
+
+                    if uptime < (self.config.state.minimum_uptime as u64 * 60) {
+                        println!("Holding back from switching state. Server too young.");
+                        return;
+                    }
+                }
+                // if we're restoring to an OK state, it's due to human interaction
+                // (user sent a heartbeat), so don't hold back
+                _ => (),
+            }
+            *locked_state = Redundant::new(state);
+            drop(locked_state);
+
             // re-bake any baked stuff
             let _: String = api::bake_status_api_response(self.clone()).await;
         }
