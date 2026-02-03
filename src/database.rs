@@ -18,7 +18,7 @@
 */
 
 use crate::config::ServerConfig;
-use crate::{HeartbeatDisplay, LifeState};
+use crate::state::{HeartbeatDisplay, LifeState};
 use chrono::{FixedOffset, TimeZone};
 use std::fmt::{Display, Formatter, Write};
 use std::fs::File;

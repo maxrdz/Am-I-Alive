@@ -22,6 +22,7 @@ mod config;
 mod database;
 mod pow;
 mod redundancy;
+mod state;
 mod templating;
 
 use argon2::password_hash::PasswordHash;
@@ -30,14 +31,14 @@ use axum::{
     routing::{get, post},
 };
 use redundancy::Redundant;
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
-use std::{collections::HashMap, net::IpAddr};
 use tokio::net::TcpListener;
-use tokio::sync::{Mutex, MutexGuard, broadcast};
+use tokio::sync::{Mutex, broadcast};
 use tokio::time::{self, Duration, Interval};
 
 const BIND_ADDRESS: &str = "0.0.0.0:3000";
@@ -46,191 +47,6 @@ const DB_PATH: &str = "./db.txt";
 const MAX_DISPLAYED_HEARTBEATS: usize = 5;
 const INITIAL_RATE_LIMIT_PERIOD: u64 = 5 * 60;
 const RATE_LIMIT_PERIOD_FACTOR: u64 = 2;
-
-#[derive(Clone)]
-struct ServerState {
-    state: Arc<Mutex<Redundant<LifeState>>>,
-    /// Unix time. We don't use an atomic u64 data type because
-    /// we want to make use of our custom anti-memory-corruption data type.
-    last_heartbeat: Arc<Mutex<Redundant<u64>>>,
-    server_start_time: Redundant<u64>,
-    config: Arc<config::ServerConfig>,
-    /// The parsed Argon2id password hash from our configuration file.
-    /// Used to authenticate new heartbeat requests.
-    password_hash: PasswordHash<'static>,
-    displayed_heartbeats: Arc<Mutex<[HeartbeatDisplay; MAX_DISPLAYED_HEARTBEATS]>>,
-    note: Arc<Mutex<Option<String>>>,
-    /// Instead of borrowing locks for the server state on every
-    /// API call, just bake a response every time the state is updated.
-    ///
-    /// This way, every API call is simply a [`String`] clone.
-    baked_status_api_resp: Arc<Mutex<String>>,
-    /// Store rate limiting expiration timestamps per IPv4/IPv6 address.
-    rate_limited_ips: Arc<Mutex<HashMap<IpAddr, RateLimit>>>,
-    /// State used by the PoW challenge generator Tokio task.
-    pow_state: pow::PoWState,
-}
-
-struct RateLimit {
-    /// the amount of time (seconds) this rate limit lasts for
-    period: u64,
-    /// the unix timestamp (seconds) of when the rate limit block expires
-    timestamp: u64,
-}
-
-impl ServerState {
-    /// Called at every point in the program where the latest state
-    /// should be returned. (e.g. front page, /api/status)
-    ///
-    /// Refreshes the shared application state based on current Unix timestamp.
-    ///
-    async fn update(&self, now_unix_timestamp: u64) {
-        let last_seen: u64 = **self.last_heartbeat.lock().await;
-        // just a sanity check to make sure this isnt possible past this point
-        assert!(
-            last_seen <= now_unix_timestamp,
-            "Last heartbeat recorded happened in the future!"
-        );
-
-        let seconds_since_last_seen: u64 = now_unix_timestamp - last_seen;
-
-        // config variable is in hours, so translate to seconds by * 60 * 60.
-        let seconds_until_uncertain: u64 =
-            u64::from(self.config.state.time_until_uncertain) * 60 * 60;
-
-        let mut locked_state: MutexGuard<'_, Redundant<LifeState>> = self.state.lock().await;
-        let mut new_state: Option<LifeState> = None;
-
-        match **locked_state {
-            LifeState::Alive => {
-                if seconds_since_last_seen > seconds_until_uncertain {
-                    new_state = Some(LifeState::ProbablyAlive);
-                    println!("Entering \"Probably Alive\" state.");
-                }
-            }
-            LifeState::ProbablyAlive => {
-                let seconds_until_missing: u64 =
-                    u64::from(self.config.state.time_until_missing) * 60 * 60;
-
-                if seconds_since_last_seen > seconds_until_missing {
-                    new_state = Some(LifeState::MissingOrDead);
-                    println!("Assuming Missing or Dead.");
-                }
-                // check if the latest heartbeat maybe restores our state back to "Alive"
-                if seconds_since_last_seen < seconds_until_uncertain {
-                    new_state = Some(LifeState::Alive);
-                    println!("Restoring state to \"Alive\".");
-                }
-            }
-            // other states can only be reached by manual interaction
-            // (e.g. trusted user verifying the state of the person, or the person sending a new heartbeat)
-            _ => {
-                // check if the latest heartbeat maybe restores our state back to "Alive"
-                if seconds_since_last_seen < seconds_until_uncertain {
-                    new_state = Some(LifeState::Alive);
-                    println!("Restoring state to \"Alive\".");
-                }
-            }
-        }
-
-        if let Some(state) = new_state {
-            match state {
-                LifeState::MissingOrDead | LifeState::ProbablyAlive => {
-                    let uptime: u64 = now_unix_timestamp - *self.server_start_time;
-
-                    if uptime < (self.config.state.minimum_uptime as u64 * 60) {
-                        println!("Holding back from switching state. Server too young.");
-                        return;
-                    }
-                }
-                // if we're restoring to an OK state, it's due to human interaction
-                // (user sent a heartbeat), so don't hold back
-                _ => (),
-            }
-            *locked_state = Redundant::new(state);
-            drop(locked_state);
-
-            // re-bake any baked stuff
-            let _: String = api::bake_status_api_response(self.clone()).await;
-        }
-    }
-}
-
-#[derive(Default, Clone, Copy, PartialEq, Eq)]
-enum LifeState {
-    #[default]
-    Alive,
-    /// enter this state once we have not received a heartbeat
-    /// after the full grace period (default 24 hours)
-    ProbablyAlive,
-    /// enter this state after the end of the maximum silence period
-    MissingOrDead,
-    /// enter this state once verified by 1 or more trusted users
-    Incapacitated,
-    /// enter this state once verified by 1 or more trusted users
-    Dead,
-}
-
-/// Implement on any enum that represents a state which has an
-/// associated visual CSS color on the rendered HTML.
-trait AssociatedColor
-where
-    Self: PartialEq + Eq,
-{
-    fn css_color(&self) -> String;
-}
-
-impl AssociatedColor for LifeState {
-    fn css_color(&self) -> String {
-        match self {
-            LifeState::Alive => "#00cd00".into(),
-            LifeState::ProbablyAlive => "#b1d000".into(),
-            LifeState::MissingOrDead => "#d80000".into(),
-            LifeState::Incapacitated => "#515cef".into(),
-            LifeState::Dead => "#828282".into(),
-        }
-    }
-}
-
-impl std::fmt::Display for LifeState {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Alive => write!(f, "ALIVE"),
-            Self::ProbablyAlive => write!(f, "PROBABLY ALIVE"),
-            Self::MissingOrDead => write!(f, "MISSING OR DEAD"),
-            Self::Incapacitated => write!(f, "ALIVE BUT INCAPACITATED"),
-            Self::Dead => write!(f, "DEAD"),
-        }
-    }
-}
-
-impl From<&str> for LifeState {
-    fn from(value: &str) -> Self {
-        match value {
-            "0" => Self::Alive,
-            "1" => Self::ProbablyAlive,
-            "2" => Self::MissingOrDead,
-            "3" => Self::Incapacitated,
-            "4" => Self::Dead,
-            _ => panic!("'{}' does not represent a valid state!", value),
-        }
-    }
-}
-
-#[derive(Clone)]
-struct HeartbeatDisplay {
-    timestamp: String,
-    message: String,
-}
-
-impl Default for HeartbeatDisplay {
-    fn default() -> Self {
-        HeartbeatDisplay {
-            timestamp: String::from("N/A"),
-            message: String::from("N/A"),
-        }
-    }
-}
 
 #[tokio::main]
 async fn main() {
@@ -297,7 +113,7 @@ async fn main() {
     };
 
     // build our state struct
-    let server_state: ServerState = ServerState {
+    let server_state: state::ServerState = state::ServerState {
         state: Arc::new(Mutex::new(Redundant::new(initial_state.state))),
         last_heartbeat: Arc::new(Mutex::new(Redundant::new(initial_state.last_heartbeat))),
         server_start_time: Redundant::new(boot_time),
@@ -315,7 +131,7 @@ async fn main() {
     // this is useful for the digital will to take effect even if
     // no one is sending HTTP requests to serving endpoints
     tokio::spawn({
-        let state: ServerState = server_state.clone();
+        let state: state::ServerState = server_state.clone();
 
         async move {
             let ival: u64 = state.config.state.tick_interval.into();

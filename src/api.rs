@@ -20,10 +20,8 @@
 use crate::database::{Database, HeartbeatLog, load_database};
 use crate::pow::verify_pow_solution;
 use crate::redundancy::Redundant;
-use crate::{
-    HeartbeatDisplay, INITIAL_RATE_LIMIT_PERIOD, LifeState, MAX_DISPLAYED_HEARTBEATS,
-    RATE_LIMIT_PERIOD_FACTOR, RateLimit, ServerState,
-};
+use crate::state::{HeartbeatDisplay, LifeState, RateLimit, ServerState};
+use crate::{INITIAL_RATE_LIMIT_PERIOD, MAX_DISPLAYED_HEARTBEATS, RATE_LIMIT_PERIOD_FACTOR};
 use argon2::{Argon2, PasswordVerifier};
 use axum::body::Body;
 use axum::extract::{Json, State};
@@ -142,11 +140,7 @@ pub async fn heartbeat_api(
     State(server_state): State<ServerState>,
     Json(req): Json<HeartbeatRequest>,
 ) -> impl IntoResponse {
-    let real_ip: &HeaderValue = headers
-        .get("X-Real-IP")
-        .expect("Missing X-Real-IP header. Fix in NGINX conf.");
-    let ip: IpAddr = IpAddr::from_str(str::from_utf8(real_ip.as_bytes()).unwrap()).unwrap();
-
+    let ip: IpAddr = get_proxied_client_ip(&headers);
     let now: u64 = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()
@@ -290,4 +284,13 @@ pub async fn heartbeat_api(
         .status(StatusCode::OK)
         .body(Body::default())
         .unwrap()
+}
+
+/// Return an [`IpAddr`] by extracting the `X-Real-IP` HTTP header.
+///
+pub fn get_proxied_client_ip(headers: &HeaderMap) -> IpAddr {
+    let real_ip: &HeaderValue = headers
+        .get("X-Real-IP")
+        .expect("Missing X-Real-IP header. Fix in NGINX conf.");
+    IpAddr::from_str(str::from_utf8(real_ip.as_bytes()).unwrap()).unwrap()
 }

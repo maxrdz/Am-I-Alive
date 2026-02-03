@@ -17,18 +17,17 @@
     License along with "Am I Alive". If not, see <https://www.gnu.org/licenses/>.
 */
 
-use crate::api::PowSolution;
-use crate::{RateLimit, ServerState};
+use crate::api::{PowSolution, get_proxied_client_ip};
+use crate::state::{RateLimit, ServerState};
 use axum::body::Body;
 use axum::extract::State;
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
-use axum::http::{HeaderMap, HeaderValue, StatusCode};
+use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use serde_json::json;
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::net::IpAddr;
-use std::str::FromStr;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::{MutexGuard, broadcast};
@@ -136,10 +135,7 @@ pub async fn ws_handler(
     State(server_state): State<ServerState>,
 ) -> impl IntoResponse {
     // we will also enforce the IP-based rate limit block on this WebSocket endpoint
-    let real_ip: &HeaderValue = headers
-        .get("X-Real-IP")
-        .expect("Missing X-Real-IP header. Fix in NGINX conf.");
-    let ip: IpAddr = IpAddr::from_str(str::from_utf8(real_ip.as_bytes()).unwrap()).unwrap();
+    let ip: IpAddr = get_proxied_client_ip(&headers);
 
     let locked_map: MutexGuard<'_, HashMap<IpAddr, RateLimit>> =
         server_state.rate_limited_ips.lock().await;

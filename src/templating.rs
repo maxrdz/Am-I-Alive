@@ -18,7 +18,7 @@
 */
 
 use crate::redundancy::Redundant;
-use crate::{AssociatedColor, HeartbeatDisplay, LifeState, ServerState};
+use crate::state::{AssociatedColor, HeartbeatDisplay, LifeState, ServerState};
 use askama::Template;
 use axum::{
     extract::State,
